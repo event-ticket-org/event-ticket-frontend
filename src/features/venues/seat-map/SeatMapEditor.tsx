@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { MapElement, SeatMap, SeatMapSeat } from '~/api/types'
-import { Button, Field, Problem, cx, inputClass } from '~/shared/ui'
+import { Button, Field, Problem, Segment, Segmented, cx, inputClass } from '~/shared/ui'
 import { elementSize, panBounds, rectBetween, zoomBounds, type Rect } from './geometry'
 import { SeatMapView } from './SeatMapView'
 import { describeProblem } from './validation'
@@ -543,47 +543,17 @@ function ViewControls({ draft }: { draft: ReturnType<typeof useSeatMapDraft> }) 
     draft.setView(zoomBounds(draft.bounds, factor, centre, draft.contentBounds))
 
   return (
-    <div className="flex">
-      <IconButton label="Zoom out" onClick={() => zoom(1.25)}>
+    <Segmented label="Seat map view">
+      <Segment aria-label="Zoom out" title="Zoom out" className="w-12 px-0 text-heading" onClick={() => zoom(1.25)}>
         −
-      </IconButton>
-      <IconButton label="Zoom in" onClick={() => zoom(0.8)} className="-ml-0.5">
+      </Segment>
+      <Segment aria-label="Zoom in" title="Zoom in" className="w-12 px-0 text-heading" onClick={() => zoom(0.8)}>
         +
-      </IconButton>
-      <Button
-        variant="secondary"
-        className="-ml-0.5 w-auto px-3 text-label uppercase"
-        onClick={() => draft.setView(null)}
-      >
+      </Segment>
+      <Segment title="Fit the whole map in view" onClick={() => draft.setView(null)}>
         Fit
-      </Button>
-    </div>
-  )
-}
-
-function IconButton({
-  label,
-  onClick,
-  className,
-  children,
-}: {
-  label: string
-  onClick: () => void
-  className?: string
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      aria-label={label}
-      title={label}
-      onClick={onClick}
-      className={cx(
-        'flex size-11 items-center justify-center border-2 border-ink bg-paper text-heading text-ink',
-        className,
-      )}
-    >
-      {children}
-    </button>
+      </Segment>
+    </Segmented>
   )
 }
 

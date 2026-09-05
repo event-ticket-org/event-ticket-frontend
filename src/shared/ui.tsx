@@ -242,3 +242,50 @@ export function MoneyTotal({ money }: { money: Money }) {
     <span className="font-numeric text-numeric-lg text-ink">{formatMoney(money)}</span>
   )
 }
+
+/**
+ * A group of related controls that behaves as one physical object.
+ *
+ * Elevation is the affordance in this system: raised means actionable, flat means not. A row
+ * of individually flat buttons therefore reads as a row of disabled ones - and a row of
+ * individually raised buttons is three shadows fighting where there is one control. So the
+ * *group* carries the border and the shadow, and the segments inside it are keys on it,
+ * divided by rules rather than separated by gaps.
+ *
+ * The first version of the zoom controls had it both ways: two bare flat buttons joined to a
+ * secondary Button that brought its own shadow, which is what made the seam obvious.
+ */
+export function Segmented({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div
+      role="group"
+      aria-label={label}
+      className="inline-flex border-2 border-ink bg-paper shadow-raised [&>*+*]:border-l-2 [&>*]:border-ink"
+    >
+      {children}
+    </div>
+  )
+}
+
+export function Segment({
+  selected,
+  className,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { selected?: boolean }) {
+  return (
+    <button
+      {...props}
+      aria-pressed={selected}
+      className={cx(
+        // 48px, so the group - which adds its own 2px top and bottom - stands exactly as
+        // tall as a Button beside it. A row of controls that steps by four pixels is the
+        // kind of thing you see before you can say what is wrong with it.
+        'inline-flex min-h-12 items-center justify-center px-4 text-label uppercase',
+        // No press travel: the group is the object that would move, and moving one key of it
+        // looks broken. The fill is the feedback instead.
+        selected ? 'bg-ink text-chalk' : 'bg-paper text-ink hover:bg-info/20 active:bg-info',
+        className,
+      )}
+    />
+  )
+}

@@ -1,6 +1,16 @@
 import { useState } from 'react'
 import type { Organization, OrganizationStatus } from '~/api/types'
-import { Button, EmptyState, Problem, StatusChip, TimeWithZone, cx, inputClass } from '~/shared/ui'
+import {
+  Button,
+  EmptyState,
+  Problem,
+  Segment,
+  Segmented,
+  StatusChip,
+  TimeWithZone,
+  cx,
+  inputClass,
+} from '~/shared/ui'
 import { useDecideOrganization, useOrganizations } from './admin-hooks'
 
 const QUEUES: { status: OrganizationStatus; label: string }[] = [
@@ -27,22 +37,17 @@ export function AdminPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-baseline justify-between gap-4">
         <h1 className="text-title">Organizations</h1>
-        <div className="flex">
-          {QUEUES.map((option, index) => (
-            <button
+        <Segmented label="Filter organizations by status">
+          {QUEUES.map((option) => (
+            <Segment
               key={option.status}
+              selected={queue === option.status}
               onClick={() => setQueue(option.status)}
-              aria-pressed={queue === option.status}
-              className={cx(
-                'min-h-11 border-2 border-ink px-4 py-2 text-label uppercase',
-                index > 0 && '-ml-0.5',
-                queue === option.status ? 'bg-ink text-chalk' : 'bg-paper text-ink',
-              )}
             >
               {option.label}
-            </button>
+            </Segment>
           ))}
-        </div>
+        </Segmented>
       </div>
 
       <Problem error={organizations.error ?? decide.error} />

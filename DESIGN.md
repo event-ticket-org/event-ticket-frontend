@@ -415,6 +415,25 @@ opacity, because a full fill on hover makes a long table strobe under the cursor
 
 Below `md`, tables become stacked cards; see [Responsive Behavior](#responsive-behavior).
 
+### Segmented — manager
+
+A group of related controls that behaves as one physical object: a view switcher, a status
+filter, zoom and fit. **The group carries the border and the `{elevation.raised}` shadow; the
+segments inside are keys on it**, divided by `{border.default}` rules rather than separated by
+gaps.
+
+That follows from elevation being the affordance. A row of individually flat buttons reads as a
+row of disabled ones, and a row of individually raised buttons is three shadows fighting over
+one control. The segments do not travel on press — the group is the object that would move, and
+moving one key of it looks broken — so the fill is the feedback:
+
+```
+rest      {colors.paper} fill, {colors.ink} text
+hover     {colors.info} at 20%
+active    {colors.info}
+selected  {colors.ink} fill, {colors.chalk} text, and aria-pressed
+```
+
 ### StatusChip — manager, public
 
 `{type.label}`, `{space.1}`/`{space.2}` padding, `{border.default}`, no shadow, radius 0.
