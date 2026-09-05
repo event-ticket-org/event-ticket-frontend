@@ -141,7 +141,9 @@ desaturated red that reached 7:1 would be a salmon, and a salmon does not read a
 **Never set body prose on `{colors.stop}`.** Use `{colors.paper}` with a `{colors.stop}` border.
 
 **`{colors.ink-soft}` is only ever used on `{colors.paper}`.** On `{colors.paper-sunk}` it drops to
-6.6:1; use `{colors.ink}` there.
+6.6:1; use `{colors.ink}` there. Enforced by an eslint rule, because this document itself broke
+the rule once — the Button's disabled state specified exactly that pair, and the component
+implemented it faithfully.
 
 ### Pricing Tier colours, which are categorical rather than semantic
 
@@ -366,8 +368,15 @@ are missing from the design, not left to the implementer.
 | ghost | none | `{colors.ink}`, underlined | none | none |
 
 States: **rest** as above · **hover** shadow to `6px 6px 0` · **active** the press above ·
-**disabled** `{colors.paper-sunk}` fill, `{colors.ink-soft}` text, no shadow, `cursor: not-allowed`
-· **pending** label replaced with `Working…`, control disabled, no spinner.
+**disabled** `{colors.paper-sunk}` fill, `{colors.ink}` text, `{border.default}`, **no shadow**,
+`cursor: not-allowed` · **pending** label replaced with `Working…`, control disabled, no spinner.
+
+**Elevation is the affordance: raised means actionable, flat means not.** That is the whole
+signal for a disabled control, and it is why disabled keeps full-contrast ink text and its ink
+border rather than fading out. An earlier version of this document specified `{colors.ink-soft}`
+on `{colors.paper-sunk}` here, contradicting its own rule three sections above — 6.6:1, and the
+one combination the palette forbids. Greying text out is the reflex; in this system removing the
+shadow already says it, and says it to somebody who cannot resolve a low-contrast grey at all.
 
 **No spinners on buttons.** A spinner is an animation that says nothing; the changed label says the
 same thing in the same space and survives `prefers-reduced-motion`.
@@ -385,7 +394,7 @@ disappears exactly when the user needs it. Placeholders are for format examples 
 rest      2px solid {colors.ink}, {colors.paper} fill, {space.3} padding, {type.body}
 focus     {border.heavy} + the focus ring above
 invalid   {border.heavy} in {colors.stop}, message below in {colors.ink} at {type.body}
-disabled  {colors.paper-sunk} fill, {colors.ink-soft} text
+disabled  {colors.paper-sunk} fill, {colors.ink} text
 ```
 
 Validation messages sit below the field and are never a tooltip, a title attribute, or a colour

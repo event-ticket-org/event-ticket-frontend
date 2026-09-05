@@ -78,7 +78,7 @@ export function Field({
  */
 export const inputClass =
   'w-full border-2 border-ink bg-paper px-3 py-3 text-body text-ink ' +
-  'placeholder:text-ink-soft focus:border-[3px] disabled:bg-paper-sunk disabled:text-ink-soft'
+  'placeholder:text-ink-soft focus:border-[3px] disabled:bg-paper-sunk disabled:text-ink'
 
 type ButtonVariant = 'primary' | 'secondary' | 'destructive' | 'ghost'
 
@@ -109,7 +109,9 @@ export function Button({
         'inline-flex min-h-11 items-center justify-center px-6 py-3 text-body-strong',
         variants[variant],
         variant !== 'ghost' &&
-          'disabled:cursor-not-allowed disabled:border-ink-soft disabled:bg-paper-sunk disabled:text-ink-soft disabled:shadow-none',
+          // Raised means actionable, flat means not - losing the shadow is the whole
+          // signal, so the text keeps full contrast and the border stays ink.
+          'disabled:cursor-not-allowed disabled:bg-paper-sunk disabled:text-ink disabled:shadow-none',
         className ?? 'w-full',
       )}
     >
