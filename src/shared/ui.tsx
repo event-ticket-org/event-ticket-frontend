@@ -78,7 +78,7 @@ export function Field({
  */
 export const inputClass =
   'w-full border-2 border-ink bg-paper px-3 py-3 text-body text-ink ' +
-  'placeholder:text-ink-soft focus:border-[3px] disabled:bg-paper-sunk disabled:text-ink-soft'
+  'placeholder:text-ink-soft focus:border-[3px] disabled:bg-paper-sunk disabled:text-ink'
 
 type ButtonVariant = 'primary' | 'secondary' | 'destructive' | 'ghost'
 
@@ -109,7 +109,9 @@ export function Button({
         'inline-flex min-h-11 items-center justify-center px-6 py-3 text-body-strong',
         variants[variant],
         variant !== 'ghost' &&
-          'disabled:cursor-not-allowed disabled:border-ink-soft disabled:bg-paper-sunk disabled:text-ink-soft disabled:shadow-none',
+          // Raised means actionable, flat means not - losing the shadow is the whole
+          // signal, so the text keeps full contrast and the border stays ink.
+          'disabled:cursor-not-allowed disabled:bg-paper-sunk disabled:text-ink disabled:shadow-none',
         className ?? 'w-full',
       )}
     >
@@ -238,5 +240,52 @@ export function TimeWithZone({
 export function MoneyTotal({ money }: { money: Money }) {
   return (
     <span className="font-numeric text-numeric-lg text-ink">{formatMoney(money)}</span>
+  )
+}
+
+/**
+ * A group of related controls that behaves as one physical object.
+ *
+ * Elevation is the affordance in this system: raised means actionable, flat means not. A row
+ * of individually flat buttons therefore reads as a row of disabled ones - and a row of
+ * individually raised buttons is three shadows fighting where there is one control. So the
+ * *group* carries the border and the shadow, and the segments inside it are keys on it,
+ * divided by rules rather than separated by gaps.
+ *
+ * The first version of the zoom controls had it both ways: two bare flat buttons joined to a
+ * secondary Button that brought its own shadow, which is what made the seam obvious.
+ */
+export function Segmented({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div
+      role="group"
+      aria-label={label}
+      className="inline-flex border-2 border-ink bg-paper shadow-raised [&>*+*]:border-l-2 [&>*]:border-ink"
+    >
+      {children}
+    </div>
+  )
+}
+
+export function Segment({
+  selected,
+  className,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { selected?: boolean }) {
+  return (
+    <button
+      {...props}
+      aria-pressed={selected}
+      className={cx(
+        // 48px, so the group - which adds its own 2px top and bottom - stands exactly as
+        // tall as a Button beside it. A row of controls that steps by four pixels is the
+        // kind of thing you see before you can say what is wrong with it.
+        'inline-flex min-h-12 items-center justify-center px-4 text-label uppercase',
+        // No press travel: the group is the object that would move, and moving one key of it
+        // looks broken. The fill is the feedback instead.
+        selected ? 'bg-ink text-chalk' : 'bg-paper text-ink hover:bg-info/20 active:bg-info',
+        className,
+      )}
+    />
   )
 }

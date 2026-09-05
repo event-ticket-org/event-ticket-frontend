@@ -3,6 +3,22 @@ import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
 import tseslint from 'typescript-eslint'
 
+/**
+ * `bg-paper-sunk` with `text-ink-soft`, matched only when the two carry the same variant —
+ * bare with bare, `disabled:` with `disabled:`.
+ *
+ * Matching them anywhere in a class string flags `placeholder:text-ink-soft` on an input
+ * whose rest background is `paper`, which is correct and ordinary. A rule that cries wolf on
+ * correct code gets switched off, so this narrows to the pairing that is actually wrong: one
+ * element, one state, putting the one on the other.
+ */
+const inkSoftOnPaperSunk = [
+  "(?:^|\\s)bg-paper-sunk\\b[^\"'`]*(?:^|\\s)text-ink-soft\\b",
+  "(?:^|\\s)text-ink-soft\\b[^\"'`]*(?:^|\\s)bg-paper-sunk\\b",
+  "disabled:bg-paper-sunk\\b[^\"'`]*disabled:text-ink-soft\\b",
+  "disabled:text-ink-soft\\b[^\"'`]*disabled:bg-paper-sunk\\b",
+].join('|')
+
 export default tseslint.config(
   // .vite is the dev server's dependency cache. It only exists while `npm run dev` is
   // running, which is exactly when someone is most likely to lint.
@@ -42,6 +58,14 @@ export default tseslint.config(
             "Literal[value=/(?:^|[\\s'\"`])rounded\\b(?!-full|-none)/], TemplateElement[value.raw=/(?:^|[\\s'\"`])rounded\\b(?!-full|-none)/]",
           message:
             'DESIGN.md: radius is 0. A rounded corner means "this depicts a physical object" - a seat glyph, a map element, a QR - and rounded-full is the only utility for it.',
+        },
+        {
+          // 6.6:1, and the one pair the palette forbids. DESIGN.md specified exactly this
+          // for a disabled Button while ruling it out three sections above, and the
+          // component implemented the wrong half - so it is checked rather than trusted.
+          selector: `Literal[value=/${inkSoftOnPaperSunk}/], TemplateElement[value.raw=/${inkSoftOnPaperSunk}/]`,
+          message:
+            'DESIGN.md: ink-soft text is only ever used on paper. On paper-sunk it is 6.6:1 - use text-ink there. A disabled control is signalled by losing its shadow, not by fading its text.',
         },
       ],
     },

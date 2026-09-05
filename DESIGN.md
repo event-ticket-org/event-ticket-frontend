@@ -141,7 +141,32 @@ desaturated red that reached 7:1 would be a salmon, and a salmon does not read a
 **Never set body prose on `{colors.stop}`.** Use `{colors.paper}` with a `{colors.stop}` border.
 
 **`{colors.ink-soft}` is only ever used on `{colors.paper}`.** On `{colors.paper-sunk}` it drops to
-6.6:1; use `{colors.ink}` there.
+6.6:1; use `{colors.ink}` there. Enforced by an eslint rule, because this document itself broke
+the rule once — the Button's disabled state specified exactly that pair, and the component
+implemented it faithfully.
+
+The rule reads class strings, so it catches the pair only on one element. In SVG a fill and the
+shape behind it are two different elements — the seat map's landmark caption was `fill-ink-soft`
+on a `fill-paper-sunk` rect, and on `{colors.info}` when selected, at 4.2:1 — and nothing
+automatic will find the next one. Judgement still applies where the two colours are not written
+side by side.
+
+### Pricing Tier colours, which are categorical rather than semantic
+
+```
+tier-1  #6B4FD8    tier-3  #1F7A6B    tier-5  #7A7A1F
+tier-2  #C2571F    tier-4  #A83A72    tier-6  #3C4E8C
+```
+
+The four state colours answer *what is true of this seat right now* — available, held, sold. A
+Pricing Tier is not a state: it is a category with no ordering, no meaning attached to any
+particular member, and no fixed number of them. Painting VIP with `{colors.go}` and Restricted
+View with `{colors.stop}` would say something about those tiers that is not true.
+
+So tiers get their own scale, and it is deliberately muted where the state scale is vivid — the
+two are never shown together, but a tier should not look like a verdict. **These are used only
+inside the seat map and its legend**, and the legend always names the tier, so colour is an aid
+rather than the only signal. Beyond six tiers the scale repeats; see [Known Gaps](#known-gaps).
 
 ### Colour is never the only signal
 
@@ -349,8 +374,15 @@ are missing from the design, not left to the implementer.
 | ghost | none | `{colors.ink}`, underlined | none | none |
 
 States: **rest** as above · **hover** shadow to `6px 6px 0` · **active** the press above ·
-**disabled** `{colors.paper-sunk}` fill, `{colors.ink-soft}` text, no shadow, `cursor: not-allowed`
-· **pending** label replaced with `Working…`, control disabled, no spinner.
+**disabled** `{colors.paper-sunk}` fill, `{colors.ink}` text, `{border.default}`, **no shadow**,
+`cursor: not-allowed` · **pending** label replaced with `Working…`, control disabled, no spinner.
+
+**Elevation is the affordance: raised means actionable, flat means not.** That is the whole
+signal for a disabled control, and it is why disabled keeps full-contrast ink text and its ink
+border rather than fading out. An earlier version of this document specified `{colors.ink-soft}`
+on `{colors.paper-sunk}` here, contradicting its own rule three sections above — 6.6:1, and the
+one combination the palette forbids. Greying text out is the reflex; in this system removing the
+shadow already says it, and says it to somebody who cannot resolve a low-contrast grey at all.
 
 **No spinners on buttons.** A spinner is an animation that says nothing; the changed label says the
 same thing in the same space and survives `prefers-reduced-motion`.
@@ -368,7 +400,7 @@ disappears exactly when the user needs it. Placeholders are for format examples 
 rest      2px solid {colors.ink}, {colors.paper} fill, {space.3} padding, {type.body}
 focus     {border.heavy} + the focus ring above
 invalid   {border.heavy} in {colors.stop}, message below in {colors.ink} at {type.body}
-disabled  {colors.paper-sunk} fill, {colors.ink-soft} text
+disabled  {colors.paper-sunk} fill, {colors.ink} text
 ```
 
 Validation messages sit below the field and are never a tooltip, a title attribute, or a colour
@@ -382,6 +414,25 @@ Row hover fills `{colors.info}` at 20% — the only place in the system a colour
 opacity, because a full fill on hover makes a long table strobe under the cursor.
 
 Below `md`, tables become stacked cards; see [Responsive Behavior](#responsive-behavior).
+
+### Segmented — manager
+
+A group of related controls that behaves as one physical object: a view switcher, a status
+filter, zoom and fit. **The group carries the border and the `{elevation.raised}` shadow; the
+segments inside are keys on it**, divided by `{border.default}` rules rather than separated by
+gaps.
+
+That follows from elevation being the affordance. A row of individually flat buttons reads as a
+row of disabled ones, and a row of individually raised buttons is three shadows fighting over
+one control. The segments do not travel on press — the group is the object that would move, and
+moving one key of it looks broken — so the fill is the feedback:
+
+```
+rest      {colors.paper} fill, {colors.ink} text
+hover     {colors.info} at 20%
+active    {colors.info}
+selected  {colors.ink} fill, {colors.chalk} text, and aria-pressed
+```
 
 ### StatusChip — manager, public
 
@@ -698,6 +749,10 @@ shadow that is not a token, that is a design decision — bring it here first.
 
 Honest list of what this document does not yet decide.
 
+- **The tier scale repeats after six.** A Venue with seven Pricing Tiers gets two the same
+  colour. The legend still names them and selecting a tier still highlights it, so nothing is
+  ambiguous — but the map stops being readable at a glance, and a seventh tier is a signal the
+  scale needs patterns rather than more hues.
 - **No icon set is chosen.** The components above avoid icons deliberately, but the scanner's camera
   controls and the seat map editor's tools will need them. A stroke-only set at 2px to match the
   border weight is the constraint; the specific set is undecided.
