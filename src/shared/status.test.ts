@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { nextPageParam } from '~/features/admin/admin-hooks'
+import { nextPageParam, pageQuery } from '~/api/paging'
 import { statusColours } from './ui'
 
 /**
@@ -62,5 +62,10 @@ describe('keyset pagination', () => {
 
   it('continues on a real cursor', () => {
     expect(nextPageParam({ nextCursor: 'opaque-cursor' })).toBe('opaque-cursor')
+  })
+
+  it('omits the cursor on a first page rather than sending an empty one', () => {
+    expect(pageQuery(undefined)).toBe('limit=20')
+    expect(pageQuery('a b/c')).toBe('limit=20&cursor=a%20b%2Fc')
   })
 })
