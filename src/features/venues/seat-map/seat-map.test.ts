@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import type { SeatMapSeat } from '~/api/types'
-import { boundsOf, panBounds, rectBetween, seatsWithin, viewBoxOf, zoomBounds } from './geometry'
+import {
+  boundsOf,
+  panBounds,
+  rectBetween,
+  seatsWithin,
+  snap,
+  viewBoxOf,
+  zoomBounds,
+  zoomLimits,
+} from './geometry'
 import { generateBlock, rowIndex, rowLabel } from './generator'
 import { tierNamesInUse, validateSeatMap } from './validation'
 
@@ -208,5 +217,58 @@ describe('marquee selection', () => {
 
   it('selects nothing for an empty drag', () => {
     expect(seatsWithin(seats, rectBetween({ x: 3, y: 3 }, { x: 3, y: 3 }))).toEqual([])
+  })
+})
+
+describe('zoom is bounded, because getting lost had no escape', () => {
+  const content = { minX: 0, minY: 0, maxX: 26, maxY: 16 }
+
+  it('refuses to zoom out past a few times the content', () => {
+    // Thirty notches out turned a 26-unit map into a 545-unit view of blank paper, with no
+    // way back except reloading and losing the draft.
+    let bounds = content
+    for (let i = 0; i < 40; i++) {
+      bounds = zoomBounds(bounds, 1.1, { x: 13, y: 8 }, content)
+    }
+    expect(bounds.maxX - bounds.minX).toBeLessThanOrEqual(zoomLimits(content).max)
+  })
+
+  it('refuses to zoom in past a couple of seats', () => {
+    let bounds = content
+    for (let i = 0; i < 60; i++) {
+      bounds = zoomBounds(bounds, 0.9, { x: 13, y: 8 }, content)
+    }
+    expect(bounds.maxX - bounds.minX).toBeGreaterThanOrEqual(zoomLimits(content).min)
+  })
+
+  it('still keeps the point under the cursor still within the limits', () => {
+    const about = { x: 4, y: 12 }
+    const zoomed = zoomBounds(content, 0.5, about, content)
+    expect((about.x - zoomed.minX) / (zoomed.maxX - zoomed.minX)).toBeCloseTo(
+      (about.x - content.minX) / (content.maxX - content.minX),
+    )
+  })
+})
+
+describe('snapping', () => {
+  it('puts a dragged position on a lattice so an overlap is exact', () => {
+    // The shared-position rule compares x,y for equality, on both sides. A drag measured in
+    // pixels produces 1.988, which equals nothing - so a seat dropped squarely on another
+    // was accepted by the editor and by the server, drawn one on top of the other.
+    expect(snap(1.988)).toBe(2)
+    expect(snap(0.994)).toBe(1)
+    expect(snap(2.13)).toBe(2.25)
+    expect(snap(-0.6)).toBe(-0.5)
+  })
+
+  it('makes two seats dragged to the same place collide detectably', () => {
+    const a = { label: 'A1', x: snap(1.988), y: snap(0.994), tierName: 'S' }
+    const b = { label: 'B7', x: snap(2.02), y: snap(1.01), tierName: 'S' }
+    expect(validateSeatMap({ seats: [a, b] })).toContainEqual({
+      kind: 'SHARED_POSITION',
+      labels: ['A1', 'B7'],
+      x: 2,
+      y: 1,
+    })
   })
 })

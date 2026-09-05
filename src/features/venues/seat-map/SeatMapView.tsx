@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import type { MapElement, SeatMap, SeatMapSeat } from '~/api/types'
 import { cx } from '~/shared/ui'
 import { SEAT_RADIUS, elementSize, viewBoxOf, type Bounds, type Rect } from './geometry'
@@ -36,7 +36,11 @@ export type SeatMapViewProps = {
   onBackgroundPointerDown?: (point: { x: number; y: number }, event: React.PointerEvent) => void
   onPointerMove?: (point: { x: number; y: number }, event: React.PointerEvent) => void
   onPointerUp?: (point: { x: number; y: number }, event: React.PointerEvent) => void
-  onWheel?: (point: { x: number; y: number }, event: React.WheelEvent) => void
+  /**
+   * Zoom, and only when the pointer asks for it — see the listener below. A factor under 1
+   * zooms in.
+   */
+  onZoom?: (point: { x: number; y: number }, factor: number) => void
   className?: string
   ariaLabel: string
 }
@@ -53,7 +57,7 @@ export function SeatMapView({
   onBackgroundPointerDown,
   onPointerMove,
   onPointerUp,
-  onWheel,
+  onZoom,
   className,
   ariaLabel,
 }: SeatMapViewProps) {
@@ -90,6 +94,31 @@ export function SeatMapView({
     return seat ? ([seat, index] as const) : undefined
   }
 
+  /**
+   * Plain wheel scrolls the page. Ctrl or Cmd zooms — which is also what a trackpad pinch
+   * sends, so pinch-to-zoom works without being special-cased.
+   *
+   * A React `onWheel` is registered passive, so it cannot stop the page scrolling: the map
+   * zoomed *and* the page moved, and on a screen shorter than this page you could not scroll
+   * past the map to reach Save. Hence a non-passive listener, and hence requiring the
+   * modifier — a map embedded in a document must not swallow the document's scroll.
+   */
+  useEffect(() => {
+    const element = svg.current
+    if (!element || !onZoom) {
+      return
+    }
+    const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) {
+        return
+      }
+      event.preventDefault()
+      onZoom(toMapPoint(event), event.deltaY > 0 ? 1.1 : 0.9)
+    }
+    element.addEventListener('wheel', onWheel, { passive: false })
+    return () => element.removeEventListener('wheel', onWheel)
+  }, [onZoom, toMapPoint])
+
   return (
     <svg
       ref={svg}
@@ -97,7 +126,7 @@ export function SeatMapView({
       aria-label={ariaLabel}
       viewBox={viewBoxOf(bounds)}
       preserveAspectRatio="xMidYMid meet"
-      className={cx('touch-none select-none', className)}
+      className={cx('touch-pan-y select-none', className)}
       onPointerDown={(event) => {
         const target = event.target as Element
         const found = seatAt(target.closest('[data-seat]')?.getAttribute('data-seat'))
@@ -117,7 +146,6 @@ export function SeatMapView({
       }}
       onPointerMove={(event) => onPointerMove?.(toMapPoint(event), event)}
       onPointerUp={(event) => onPointerUp?.(toMapPoint(event), event)}
-      onWheel={(event) => onWheel?.(toMapPoint(event), event)}
     >
       {map.elements.map((element, index) => (
         <Element

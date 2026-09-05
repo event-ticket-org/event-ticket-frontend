@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import type { MapElement, SeatMap } from '~/api/types'
-import { boundsOf, padBounds, seatsWithin, type Bounds, type Rect } from './geometry'
+import { boundsOf, padBounds, seatsWithin, snap, type Bounds, type Rect } from './geometry'
 import { generateBlock, type BlockSpec } from './generator'
 import { tierNamesInUse, validateSeatMap } from './validation'
 
@@ -65,9 +65,12 @@ export function useSeatMapDraft(saved: SeatMap | undefined) {
     (dx: number, dy: number) =>
       edit((current) => ({
         ...current,
+        // Snapped, so that dropping one seat on another is an exact collision the
+        // validator can see. A drag measured in pixels never lands on another seat's
+        // coordinates by equality, so overlaps used to pass straight through.
         seats: current.seats.map((seat, index) =>
           selection.has(index)
-            ? { ...seat, x: round(seat.x + dx), y: round(seat.y + dy) }
+            ? { ...seat, x: snap(seat.x + dx), y: snap(seat.y + dy) }
             : seat,
         ),
       })),
@@ -132,7 +135,7 @@ export function useSeatMapDraft(saved: SeatMap | undefined) {
         ...current,
         elements: current.elements.map((element, index) =>
           index === target
-            ? { ...element, x: round(element.x + dx), y: round(element.y + dy) }
+            ? { ...element, x: snap(element.x + dx), y: snap(element.y + dy) }
             : element,
         ),
       })),
@@ -202,6 +205,7 @@ export function useSeatMapDraft(saved: SeatMap | undefined) {
     problems,
     tiers,
     bounds,
+    contentBounds,
     selection,
     elementSelection,
     selectElement,
@@ -226,6 +230,3 @@ export function useSeatMapDraft(saved: SeatMap | undefined) {
 const EMPTY_MAP: SeatMap = { seats: [], elements: [] }
 const EMPTY_BOUNDS: Bounds = { minX: -6, minY: -4, maxX: 6, maxY: 4 }
 
-function round(value: number): number {
-  return Math.round(value * 1000) / 1000
-}

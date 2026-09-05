@@ -18,6 +18,22 @@ export type Bounds = { minX: number; minY: number; maxX: number; maxY: number }
 /** Half a seat's pitch, so a seat at the very edge is not clipped in half. */
 export const SEAT_RADIUS = 0.42
 
+/**
+ * Dragged seats land on a quarter-pitch lattice.
+ *
+ * Not tidiness - correctness. Two seats may not share a position, and both this editor and
+ * the server test that by exact equality on `x,y`. A drag measured in pixels produces
+ * coordinates like 1.988, which can never equal anything, so a seat dropped squarely on top
+ * of another was accepted by both: drawn over each other, one of them unclickable and so
+ * unsellable, which is the whole harm the rule exists to prevent. On a lattice the collision
+ * is exact and gets caught.
+ */
+export const SNAP = 0.25
+
+export function snap(value: number): number {
+  return Math.round(value / SNAP) * SNAP
+}
+
 export function boundsOf(map: Pick<SeatMap, 'seats' | 'elements'>): Bounds | null {
   const xs: number[] = []
   const ys: number[] = []
@@ -62,18 +78,37 @@ export function viewBoxOf(bounds: Bounds): string {
   return `${bounds.minX} ${bounds.minY} ${width} ${height}`
 }
 
-/** Zooms about a point, so the thing under the cursor stays under the cursor. */
+/**
+ * Zooms about a point, so the thing under the cursor stays under the cursor.
+ *
+ * Clamped against the content, because unbounded zoom is a way to get lost: thirty notches
+ * out turned a 26-unit map into a 545-unit view of blank paper, and there was no way back
+ * except reloading and losing the draft. The limits are generous - a couple of seats filling
+ * the frame at one end, the whole room at a fifth of its size at the other.
+ */
 export function zoomBounds(
   bounds: Bounds,
   factor: number,
   about: { x: number; y: number },
+  content?: Bounds | null,
 ): Bounds {
+  const width = bounds.maxX - bounds.minX
+  const proposed = width * factor
+  const limits = zoomLimits(content ?? bounds)
+  if (proposed < limits.min || proposed > limits.max) {
+    return bounds
+  }
   return {
     minX: about.x + (bounds.minX - about.x) * factor,
     maxX: about.x + (bounds.maxX - about.x) * factor,
     minY: about.y + (bounds.minY - about.y) * factor,
     maxY: about.y + (bounds.maxY - about.y) * factor,
   }
+}
+
+export function zoomLimits(content: Bounds): { min: number; max: number } {
+  const width = Math.max(content.maxX - content.minX, 1)
+  return { min: Math.min(3, width), max: width * 4 }
 }
 
 export function panBounds(bounds: Bounds, dx: number, dy: number): Bounds {

@@ -87,6 +87,17 @@ export function SeatMapEditor({
 
   return (
     <div className="space-y-4">
+      {/*
+        DESIGN.md: the editor is not offered below `md`. A generator, a marquee and
+        drag-to-move cannot be done honestly on a 375px screen, and an editor that half
+        works on a phone is one that corrupts maps. The map itself still renders, so the
+        layout can be checked - it just cannot be edited.
+      */}
+      <p className="border-2 border-ink bg-paper-sunk px-4 py-3 text-body text-ink md:hidden">
+        The seat map can be viewed here but not edited. Laying out seats needs a pointer and
+        a wider screen — open this venue on a laptop to change it.
+      </p>
+      <div className="hidden md:contents">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
           <Button className="w-auto" onClick={() => setGenerating(true)}>
@@ -109,6 +120,7 @@ export function SeatMapEditor({
           </span>
         </div>
         <div className="flex items-center gap-3">
+          <ViewControls draft={draft} />
           {dirty && (
             <Button variant="ghost" className="w-auto" onClick={draft.discard}>
               Discard changes
@@ -148,8 +160,27 @@ export function SeatMapEditor({
         </ul>
       )}
 
+      {/* Said once, where the map is, rather than only inside a panel section that
+          disappears the moment anything is selected. */}
+      <p className="text-body text-ink-soft">
+        Drag a box to select seats · drag a seat to move them · <kbd className="font-numeric">Alt</kbd>-drag
+        to pan · <kbd className="font-numeric">⌘</kbd> or <kbd className="font-numeric">Ctrl</kbd> and the
+        wheel to zoom · <kbd className="font-numeric">Delete</kbd> to remove
+      </p>
+
       <div className="flex flex-col gap-4 lg:flex-row">
-        <div className="min-w-0 flex-1 border-2 border-ink bg-paper">
+        <div className="relative min-w-0 flex-1 border-2 border-ink bg-paper">
+          {draft.map.seats.length === 0 && draft.map.elements.length === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center p-8">
+              <div className="max-w-[68ch] text-center">
+                <h3 className="text-heading">No seats yet</h3>
+                <p className="mt-2 text-body text-ink-soft">
+                  Add rows to lay out a block, then drag, relabel and price them. Nothing is
+                  saved until you press Save seat map.
+                </p>
+              </div>
+            </div>
+          )}
           <SeatMapView
             map={draft.map}
             bounds={draft.bounds}
@@ -209,14 +240,17 @@ export function SeatMapEditor({
               }
               setDrag(null)
             }}
-            onWheel={(point, event) => {
-              // Zooming about the cursor, so whatever you are looking at stays put.
-              draft.setView(zoomBounds(draft.bounds, event.deltaY > 0 ? 1.1 : 0.9, point))
-            }}
+            onZoom={(point, factor) =>
+              // About the cursor, so whatever you are looking at stays put, and clamped
+              // against the content so the map cannot be zoomed into empty paper.
+              draft.setView(zoomBounds(draft.bounds, factor, point, draft.contentBounds))
+            }
           />
         </div>
 
         <SidePanel draft={draft} tierFill={tierFill} />
+      </div>
+
       </div>
 
       {generating && (
@@ -293,7 +327,7 @@ function SidePanel({
           <p className="mt-2 text-body text-ink-soft">
             {selectedElement
               ? 'A landmark is selected. Drag it on the map to place it.'
-              : 'Click a seat, or drag a box around several. Alt-drag pans, the wheel zooms.'}
+              : 'Nothing selected. Click a seat to change its label or tier, or drag a box around several.'}
           </p>
         ) : (
           <div className="mt-3 space-y-4">
@@ -490,6 +524,66 @@ function GenerateRows({
         </div>
       </div>
     </div>
+  )
+}
+
+/**
+ * Zoom and fit, as buttons.
+ *
+ * Fit is the important one. Before it existed there was no way back from a zoom: the view
+ * could be panned into blank paper and the only escape was reloading the page, which threw
+ * away the draft. A gesture with no visible equivalent is also a gesture nobody finds.
+ */
+function ViewControls({ draft }: { draft: ReturnType<typeof useSeatMapDraft> }) {
+  const centre = {
+    x: (draft.bounds.minX + draft.bounds.maxX) / 2,
+    y: (draft.bounds.minY + draft.bounds.maxY) / 2,
+  }
+  const zoom = (factor: number) =>
+    draft.setView(zoomBounds(draft.bounds, factor, centre, draft.contentBounds))
+
+  return (
+    <div className="flex">
+      <IconButton label="Zoom out" onClick={() => zoom(1.25)}>
+        −
+      </IconButton>
+      <IconButton label="Zoom in" onClick={() => zoom(0.8)} className="-ml-0.5">
+        +
+      </IconButton>
+      <Button
+        variant="secondary"
+        className="-ml-0.5 w-auto px-3 text-label uppercase"
+        onClick={() => draft.setView(null)}
+      >
+        Fit
+      </Button>
+    </div>
+  )
+}
+
+function IconButton({
+  label,
+  onClick,
+  className,
+  children,
+}: {
+  label: string
+  onClick: () => void
+  className?: string
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      className={cx(
+        'flex size-11 items-center justify-center border-2 border-ink bg-paper text-heading text-ink',
+        className,
+      )}
+    >
+      {children}
+    </button>
   )
 }
 
