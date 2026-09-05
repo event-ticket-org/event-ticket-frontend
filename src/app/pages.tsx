@@ -1,22 +1,31 @@
 import { Link } from 'react-router'
 import { useMe, useSessionState } from '~/features/auth/session-hooks'
+import { Card, EmptyState } from '~/shared/ui'
 
 export function HomePage() {
   const { signedIn } = useSessionState()
   const { data: me } = useMe()
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-3xl font-semibold">Event Ticket</h1>
+    <div className="space-y-6">
+      <h1 className="text-display">Event Ticket</h1>
       {signedIn && me ? (
-        <p className="text-slate-600">
-          Signed in as <strong>{me.displayName}</strong> ({me.email}).
-          {!me.emailVerified && ' Your email is not confirmed yet, so you cannot buy tickets.'}
-        </p>
+        <Card>
+          <p className="text-body">
+            Signed in as <strong className="text-body-strong">{me.displayName}</strong> ({me.email}).
+          </p>
+          {!me.emailVerified && (
+            <p className="mt-4 border-2 border-ink bg-hold px-4 py-3 text-body text-ink">
+              Your email is not confirmed yet, so you cannot buy tickets.
+            </p>
+          )}
+        </Card>
       ) : (
-        <p className="text-slate-600">
-          <Link className="underline" to="/sign-in">Sign in</Link> to buy tickets or manage
-          events.
+        <p className="text-body">
+          <Link className="underline underline-offset-4" to="/sign-in">
+            Sign in
+          </Link>{' '}
+          to buy tickets or manage events.
         </p>
       )}
     </div>
@@ -29,20 +38,26 @@ export function HomePage() {
  */
 export function PlaceholderPage({ what, slice }: { what: string; slice: string }) {
   return (
-    <div className="rounded-lg border border-dashed border-slate-300 p-8 text-center">
-      <h1 className="text-lg font-medium text-slate-900">{what}</h1>
-      <p className="mt-1 text-sm text-slate-500">Arrives in slice {slice}.</p>
+    <div className="border-2 border-dashed border-ink-soft bg-paper p-8">
+      <h1 className="text-heading text-ink">{what}</h1>
+      <p className="mt-2 text-body text-ink-soft">Arrives in slice {slice}.</p>
     </div>
   )
 }
 
 export function NotFoundPage() {
   return (
-    <div className="mx-auto mt-16 max-w-sm text-center">
-      <h1 className="text-2xl font-semibold">Not found</h1>
-      <p className="mt-2 text-slate-600">
-        <Link className="underline" to="/">Back to the start</Link>
-      </p>
+    <div className="mx-auto mt-16 max-w-[640px] px-4">
+      <EmptyState
+        headline="Not found"
+        action={
+          <Link className="underline underline-offset-4" to="/">
+            Back to the start
+          </Link>
+        }
+      >
+        There is nothing at this address.
+      </EmptyState>
     </div>
   )
 }

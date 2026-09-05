@@ -553,6 +553,12 @@ Colour-blind operators read the word, the shape and the frame. Any one of the th
 These are named concretely so they can be caught in review rather than argued about. Each is a
 default that generated interfaces converge on, and each is wrong here for a stated reason.
 
+**Two of them are enforced by the build rather than by review.** `src/index.css` clears Tailwind's
+default palette, shadow and radius scales inside `@theme`, so `bg-slate-900` and `shadow-lg` no
+longer generate anything at all. What survives that — a blurred shadow, a rounded corner, a
+gradient, an entrance animation — is caught by `no-restricted-syntax` rules in `eslint.config.js`
+that read `className` strings. The rest of this list is still a matter of judgement.
+
 - **No gradients.** Not on backgrounds, not on buttons, not on text. Specifically: no
   `bg-gradient-to-r from-indigo-500 to-purple-600`, and no `bg-clip-text` gradient headings. Flat
   fills only.
@@ -679,6 +685,7 @@ Honest list of what this document does not yet decide.
   anybody made.
 - **No specification for the platform-admin screens.** They are internal, low-traffic, and will
   inherit the manager shell until they have enough surface to deserve their own rules.
-- **Nothing in `src/` obeys this document yet.** The current components use default Tailwind
-  `slate-*` values and soft shadows. Retrofitting `src/index.css`, `src/shared/ui.tsx` and
-  `src/app/layouts.tsx` is the first task that follows this file, not part of it.
+- **Only the auth slice has been built against this document.** The tokens, the primitives and
+  the three shells obey it; every screen from slice 2 onward is the first real test of whether
+  the component set above is sufficient. Expect to add components here, with their state sets,
+  as they are needed.
