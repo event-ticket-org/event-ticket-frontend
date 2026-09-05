@@ -125,24 +125,41 @@ export function Button({
  * signal here, not the only one - which is what makes it work for a colour-blind organizer
  * scanning a list of forty orders.
  */
-const statusColours: Record<string, string> = {
-  PAID: 'bg-go',
-  PUBLISHED: 'bg-go',
-  VALID: 'bg-go',
-  REFUNDED: 'bg-go',
-  ADMITTED: 'bg-go',
+export const statusColours: Record<string, string> = {
+  // Every value of every status enum in the contract, so nothing falls through to the
+  // neutral fill by accident - PENDING_APPROVAL did, and rendered a waiting organization
+  // as though it had no status at all.
+  //
+  // OrganizationStatus
+  PENDING_APPROVAL: 'bg-hold',
   APPROVED: 'bg-go',
-  DRAFT: 'bg-hold',
-  AWAITING_PAYMENT: 'bg-hold',
-  REFUND_PENDING: 'bg-hold',
-  HELD: 'bg-hold',
-  PENDING: 'bg-hold',
-  EXPIRED: 'bg-stop',
-  CANCELLED: 'bg-stop',
-  VOID: 'bg-stop',
-  REFUND_FAILED: 'bg-stop',
-  SOLD_OUT: 'bg-stop',
   REJECTED: 'bg-stop',
+  // EventStatus
+  DRAFT: 'bg-hold',
+  PUBLISHED: 'bg-go',
+  SALES_CLOSED: 'bg-paper-sunk',
+  COMPLETED: 'bg-paper-sunk',
+  CANCELLED: 'bg-stop',
+  // OrderStatus
+  AWAITING_PAYMENT: 'bg-hold',
+  PAID: 'bg-go',
+  EXPIRED: 'bg-stop',
+  REFUNDED: 'bg-go',
+  // Ticket status
+  VALID: 'bg-go',
+  REDEEMED: 'bg-paper-sunk',
+  VOID: 'bg-stop',
+  // RefundStatus
+  REFUND_PENDING: 'bg-hold',
+  REFUND_FAILED: 'bg-stop',
+  // ScanOutcome
+  ADMITTED: 'bg-go',
+  ALREADY_REDEEMED: 'bg-stop',
+  WRONG_EVENT: 'bg-stop',
+  TICKET_VOID: 'bg-stop',
+  EVENT_NOT_OPEN: 'bg-hold',
+  EVENT_ENDED: 'bg-hold',
+  UNKNOWN_CODE: 'bg-stop',
 }
 
 export function StatusChip({ status }: { status: string }) {

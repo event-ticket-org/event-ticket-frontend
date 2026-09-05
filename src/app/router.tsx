@@ -1,5 +1,14 @@
 import { createBrowserRouter } from 'react-router'
-import { ManagerLayout, PublicLayout, RequireSignedIn, ScannerLayout } from './layouts'
+import {
+  AdminLayout,
+  ManagerLayout,
+  PublicLayout,
+  RequirePlatformAdmin,
+  RequireSignedIn,
+  ScannerLayout,
+} from './layouts'
+import { AdminPage } from '~/features/admin/AdminPage'
+import { CreateOrganizationPage } from '~/features/organizations/CreateOrganizationPage'
 import { RegisterPage, SignInPage, VerifyEmailPage } from '~/features/auth/AuthPages'
 import { HomePage, NotFoundPage, PlaceholderPage } from './pages'
 
@@ -32,6 +41,21 @@ export const router = createBrowserRouter([
   {
     element: <RequireSignedIn />,
     children: [
+      // Creating an Organization happens before there is one to manage, so it sits in the
+      // public shell: the manager shell's own chrome needs a Membership this person lacks.
+      {
+        element: <PublicLayout />,
+        children: [{ path: '/organizations/new', element: <CreateOrganizationPage /> }],
+      },
+      {
+        element: <RequirePlatformAdmin />,
+        children: [
+          {
+            element: <AdminLayout />,
+            children: [{ path: '/admin', element: <AdminPage /> }],
+          },
+        ],
+      },
       {
         element: <ManagerLayout />,
         children: [

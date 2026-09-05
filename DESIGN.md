@@ -463,8 +463,15 @@ generator produced. The Seat Map is saved as one atomic document, so the editor 
 until Save and guards navigation while dirty. Label uniqueness is validated live, since the server
 rejects the whole document over one duplicate.
 
-**When the Venue is frozen** (it has a published Event), the map renders read-only with a banner
-saying why. Discovering this as a 409 is a failure of this design.
+**A Seat Map is never locked, and that is the thing organizers get wrong.** Publishing *copies*
+the map into the Event, and it is that copy which is frozen (`event_seat_frozen`); the Venue's own
+map stays editable forever. So an organizer editing a Venue that has a live Event needs to be told
+their changes **will not** reach it — a reassurance, not a lock. What is refused is *deleting* a
+Venue with a published Event (`VENUE_IN_USE`).
+
+The banner therefore reads "Changes here will not affect *Ha Noi Rock Night*, which is already on
+sale", and names the Events. Getting this backwards — locking the editor — would prevent perfectly
+legitimate work on next month's layout.
 
 ### HoldCountdown — public only
 
