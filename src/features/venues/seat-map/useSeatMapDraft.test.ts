@@ -127,3 +127,55 @@ describe('the draft', () => {
     expect(result.current.selection.size).toBe(0)
   })
 })
+
+describe('landmarks', () => {
+  const stage = { kind: 'STAGE' as const, label: 'Stage', x: 0, y: -3, width: 8, height: 1.5 }
+
+  it('selects what it just placed, so the next move is putting it somewhere', () => {
+    const { result } = renderHook(() => useSeatMapDraft(saved))
+    act(() => result.current.addElement(stage))
+
+    expect(result.current.elementSelection).toBe(0)
+    expect(result.current.map.elements).toHaveLength(1)
+  })
+
+  it('can be moved, which is the whole reason it is selectable', () => {
+    // It used to land at a fixed position and stay there: the only thing you could do with a
+    // stage in the wrong place was delete it.
+    const { result } = renderHook(() => useSeatMapDraft(saved))
+    act(() => result.current.addElement(stage))
+    act(() => result.current.moveElement(0, 4, 1))
+
+    expect(result.current.map.elements[0]).toMatchObject({ x: 4, y: -2 })
+  })
+
+  it('is never selected at the same time as seats', () => {
+    // The two are edited differently - seats move in bulk and take a tier, a landmark has a
+    // kind and a size - so a mixed selection would have to explain which operations apply.
+    const { result } = renderHook(() => useSeatMapDraft(saved))
+    act(() => result.current.addElement(stage))
+    act(() => result.current.toggle(0, false))
+    expect(result.current.elementSelection).toBeNull()
+
+    act(() => result.current.selectElement(0))
+    expect(result.current.selection.size).toBe(0)
+  })
+
+  it('forgets the selection on removal, so a shifted index cannot be reused', () => {
+    const { result } = renderHook(() => useSeatMapDraft(saved))
+    act(() => result.current.addElement(stage))
+    act(() => result.current.addElement({ ...stage, kind: 'BAR', label: 'Bar' }))
+    act(() => result.current.removeElement(0))
+
+    expect(result.current.elementSelection).toBeNull()
+    expect(result.current.map.elements.map((e) => e.kind)).toEqual(['BAR'])
+  })
+
+  it('edits in place', () => {
+    const { result } = renderHook(() => useSeatMapDraft(saved))
+    act(() => result.current.addElement(stage))
+    act(() => result.current.updateElement(0, { kind: 'ENTRANCE', label: 'Cửa vào' }))
+
+    expect(result.current.map.elements[0]).toMatchObject({ kind: 'ENTRANCE', label: 'Cửa vào' })
+  })
+})

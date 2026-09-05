@@ -145,6 +145,12 @@ desaturated red that reached 7:1 would be a salmon, and a salmon does not read a
 the rule once — the Button's disabled state specified exactly that pair, and the component
 implemented it faithfully.
 
+The rule reads class strings, so it catches the pair only on one element. In SVG a fill and the
+shape behind it are two different elements — the seat map's landmark caption was `fill-ink-soft`
+on a `fill-paper-sunk` rect, and on `{colors.info}` when selected, at 4.2:1 — and nothing
+automatic will find the next one. Judgement still applies where the two colours are not written
+side by side.
+
 ### Pricing Tier colours, which are categorical rather than semantic
 
 ```

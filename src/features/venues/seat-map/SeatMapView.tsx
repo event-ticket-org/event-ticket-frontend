@@ -21,6 +21,18 @@ export type SeatMapViewProps = {
   labelledSeats?: boolean
   marquee?: Rect | null
   onSeatPointerDown?: (seat: SeatMapSeat, index: number, event: React.PointerEvent) => void
+  /**
+   * Supplied only by the editor. A landmark is never ticketed, so in the buyer's view it must
+   * not look or behave like something to click - without this it stays inert, which is the
+   * default deliberately.
+   */
+  onElementPointerDown?: (
+    element: MapElement,
+    index: number,
+    point: { x: number; y: number },
+    event: React.PointerEvent,
+  ) => void
+  selectedElement?: number | null
   onBackgroundPointerDown?: (point: { x: number; y: number }, event: React.PointerEvent) => void
   onPointerMove?: (point: { x: number; y: number }, event: React.PointerEvent) => void
   onPointerUp?: (point: { x: number; y: number }, event: React.PointerEvent) => void
@@ -36,6 +48,8 @@ export function SeatMapView({
   labelledSeats = false,
   marquee,
   onSeatPointerDown,
+  onElementPointerDown,
+  selectedElement = null,
   onBackgroundPointerDown,
   onPointerMove,
   onPointerUp,
@@ -85,21 +99,34 @@ export function SeatMapView({
       preserveAspectRatio="xMidYMid meet"
       className={cx('touch-none select-none', className)}
       onPointerDown={(event) => {
-        const found = seatAt(
-          (event.target as Element).closest('[data-seat]')?.getAttribute('data-seat'),
-        )
+        const target = event.target as Element
+        const found = seatAt(target.closest('[data-seat]')?.getAttribute('data-seat'))
         if (found) {
           onSeatPointerDown?.(found[0], found[1], event)
-        } else {
-          onBackgroundPointerDown?.(toMapPoint(event), event)
+          return
         }
+        const elementIndex = target.closest('[data-element]')?.getAttribute('data-element')
+        const element = elementIndex === null || elementIndex === undefined
+          ? undefined
+          : map.elements[Number(elementIndex)]
+        if (element) {
+          onElementPointerDown?.(element, Number(elementIndex), toMapPoint(event), event)
+          return
+        }
+        onBackgroundPointerDown?.(toMapPoint(event), event)
       }}
       onPointerMove={(event) => onPointerMove?.(toMapPoint(event), event)}
       onPointerUp={(event) => onPointerUp?.(toMapPoint(event), event)}
       onWheel={(event) => onWheel?.(toMapPoint(event), event)}
     >
       {map.elements.map((element, index) => (
-        <Element key={`${element.kind}-${index}`} element={element} />
+        <Element
+          key={index}
+          index={index}
+          element={element}
+          interactive={onElementPointerDown !== undefined}
+          selected={selectedElement === index}
+        />
       ))}
 
       {map.seats.map((seat, index) => (
@@ -146,27 +173,43 @@ export function SeatMapView({
 }
 
 /**
- * Never ticketed, and never selectable. A stage or an aisle exists so a buyer can orient
- * themselves, so it must not look like something to click.
+ * Never ticketed. A stage or an aisle exists so a buyer can orient themselves, so outside the
+ * editor it is inert and must not look like something to click.
  */
-function Element({ element }: { element: MapElement }) {
+function Element({
+  element,
+  index,
+  interactive,
+  selected,
+}: {
+  element: MapElement
+  index: number
+  interactive: boolean
+  selected: boolean
+}) {
   const { width, height } = elementSize(element)
   return (
-    <g className="pointer-events-none">
+    <g
+      data-element={interactive ? index : undefined}
+      className={interactive ? 'cursor-move' : 'pointer-events-none'}
+    >
       <rect
         x={element.x}
         y={element.y}
         width={width}
         height={height}
-        className="fill-paper-sunk stroke-ink"
-        strokeWidth={0.08}
+        className={cx('stroke-ink', selected ? 'fill-info' : 'fill-paper-sunk')}
+        strokeWidth={selected ? 0.16 : 0.08}
       />
       <text
         x={element.x + width / 2}
         y={element.y + height / 2 + 0.14}
         textAnchor="middle"
         fontSize={0.42}
-        className="fill-ink-soft uppercase"
+        // ink, not ink-soft: this sits on paper-sunk at rest and on info when selected,
+        // which are 6.6:1 and 4.2:1 - the palette's forbidden pair and worse. The class
+        // rule cannot see this one, since the fill and its background are two elements.
+        className="fill-ink uppercase"
         letterSpacing={0.06}
       >
         {element.label ?? element.kind}

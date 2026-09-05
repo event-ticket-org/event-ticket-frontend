@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { MapElement, SeatMap, SeatMapSeat } from '~/api/types'
 import { Button, Field, Problem, cx, inputClass } from '~/shared/ui'
-import { panBounds, rectBetween, zoomBounds, type Rect } from './geometry'
+import { elementSize, panBounds, rectBetween, zoomBounds, type Rect } from './geometry'
 import { SeatMapView } from './SeatMapView'
 import { describeProblem } from './validation'
 import { useSeatMapDraft } from './useSeatMapDraft'
@@ -16,11 +16,10 @@ const TIER_FILLS = [
   'fill-tier-6',
 ]
 
-const ELEMENT_KINDS: MapElement['kind'][] = ['STAGE', 'ENTRANCE', 'AISLE', 'BAR', 'LABEL']
-
 type Drag =
   | { kind: 'marquee'; from: { x: number; y: number }; to: { x: number; y: number }; additive: boolean }
   | { kind: 'move'; from: { x: number; y: number }; last: { x: number; y: number } }
+  | { kind: 'move-element'; index: number; last: { x: number; y: number } }
   | { kind: 'pan'; last: { x: number; y: number } }
 
 export function SeatMapEditor({
@@ -40,7 +39,7 @@ export function SeatMapEditor({
   const draft = useSeatMapDraft(saved)
   const [drag, setDrag] = useState<Drag | null>(null)
   const [generating, setGenerating] = useState(false)
-  const { selection, deleteSelection, dirty } = draft
+  const { selection, deleteSelection, dirty, elementSelection, removeElement } = draft
 
   // The map is saved as one document and nothing is written until Save, so leaving with a
   // draft in hand loses every edit. The browser's own prompt is the only one that fires on a
@@ -57,14 +56,20 @@ export function SeatMapEditor({
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const editingText = event.target instanceof HTMLInputElement
-      if (!editingText && (event.key === 'Delete' || event.key === 'Backspace') && selection.size > 0) {
+      if (editingText || (event.key !== 'Delete' && event.key !== 'Backspace')) {
+        return
+      }
+      if (selection.size > 0) {
         event.preventDefault()
         deleteSelection()
+      } else if (elementSelection !== null) {
+        event.preventDefault()
+        removeElement(elementSelection)
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [selection, deleteSelection])
+  }, [selection, deleteSelection, elementSelection, removeElement])
 
   const tierFill = (seat: SeatMapSeat) => {
     const index = draft.tiers.indexOf(seat.tierName)
@@ -87,7 +92,18 @@ export function SeatMapEditor({
           <Button className="w-auto" onClick={() => setGenerating(true)}>
             Add rows
           </Button>
-          <ElementAdder onAdd={draft.addElement} />
+          {/* A button, because this performs an action. It was a <select> that fired on
+              change and reset its own value - a combobox whose current value is always the
+              placeholder, announced as a field that holds state when it holds none. The kind
+              is chosen afterwards in the side panel, where a select is choosing a value and
+              is the right control. */}
+          <Button
+            variant="secondary"
+            className="w-auto"
+            onClick={() => draft.addElement(newLandmark(draft.map))}
+          >
+            Add landmark
+          </Button>
           <span className="font-numeric text-numeric text-ink-soft">
             {draft.map.seats.length} seats
           </span>
@@ -140,24 +156,24 @@ export function SeatMapEditor({
             seatClass={seatClass}
             labelledSeats={draft.map.seats.length <= 200}
             marquee={marquee}
+            selectedElement={draft.elementSelection}
             ariaLabel="Seat map editor"
             className="h-[32rem] w-full"
             onSeatPointerDown={(seat, index, event) => {
-              // Capture so a drag that leaves the map still moves the selection. Guarded
-              // because it throws for a pointer the browser does not consider active, and
-              // losing selection entirely over a nice-to-have is a bad trade.
-              try {
-                event.currentTarget.setPointerCapture(event.pointerId)
-              } catch {
-                // Dragging still works; it just stops at the edge.
-              }
+              capture(event)
               const additive = event.shiftKey || event.metaKey || event.ctrlKey
               if (additive || !draft.selection.has(index)) {
                 draft.toggle(index, additive)
               }
               setDrag({ kind: 'move', from: { x: seat.x, y: seat.y }, last: { x: seat.x, y: seat.y } })
             }}
+            onElementPointerDown={(_element, index, point, event) => {
+              capture(event)
+              draft.selectElement(index)
+              setDrag({ kind: 'move-element', index, last: point })
+            }}
             onBackgroundPointerDown={(point, event) => {
+              draft.selectElement(null)
               if (event.button === 1 || event.altKey) {
                 setDrag({ kind: 'pan', last: point })
                 return
@@ -177,6 +193,9 @@ export function SeatMapEditor({
                 setDrag({ ...drag, to: point })
               } else if (drag.kind === 'move') {
                 draft.moveSelection(point.x - drag.last.x, point.y - drag.last.y)
+                setDrag({ ...drag, last: point })
+              } else if (drag.kind === 'move-element') {
+                draft.moveElement(drag.index, point.x - drag.last.x, point.y - drag.last.y)
                 setDrag({ ...drag, last: point })
               } else {
                 draft.setView(
@@ -228,6 +247,10 @@ function SidePanel({
     .map((seat, index) => ({ seat, index }))
     .filter(({ index }) => draft.selection.has(index))
   const only = selected.length === 1 ? selected[0] : undefined
+  const selectedElement =
+    draft.elementSelection !== null && draft.map.elements[draft.elementSelection]
+      ? { index: draft.elementSelection, element: draft.map.elements[draft.elementSelection]! }
+      : undefined
 
   return (
     <aside className="w-full shrink-0 space-y-6 border-2 border-ink bg-paper p-4 lg:w-80">
@@ -268,7 +291,9 @@ function SidePanel({
         </h3>
         {selected.length === 0 ? (
           <p className="mt-2 text-body text-ink-soft">
-            Click a seat, or drag a box around several. Alt-drag pans, the wheel zooms.
+            {selectedElement
+              ? 'A landmark is selected. Drag it on the map to place it.'
+              : 'Click a seat, or drag a box around several. Alt-drag pans, the wheel zooms.'}
           </p>
         ) : (
           <div className="mt-3 space-y-4">
@@ -324,45 +349,32 @@ function SidePanel({
           <h3 className="text-label uppercase">Landmarks</h3>
           <ul className="mt-3 space-y-2">
             {draft.map.elements.map((element, index) => (
-              <li key={`${element.kind}-${index}`} className="flex items-center justify-between gap-3">
-                <span className="text-body">{element.label ?? element.kind}</span>
-                <Button
-                  variant="ghost"
-                  className="w-auto px-0 text-label uppercase"
-                  onClick={() => draft.removeElement(index)}
+              <li key={index}>
+                <button
+                  onClick={() => draft.selectElement(index)}
+                  aria-pressed={draft.elementSelection === index}
+                  className={cx(
+                    'flex w-full items-center justify-between gap-3 border-2 border-ink px-3 py-2 text-left text-body',
+                    draft.elementSelection === index ? 'bg-info text-ink' : 'bg-paper text-ink',
+                  )}
                 >
-                  Remove
-                </Button>
+                  <span>{element.label ?? element.kind}</span>
+                  <span className="text-label uppercase text-ink-soft">{element.kind}</span>
+                </button>
               </li>
             ))}
           </ul>
         </section>
       )}
-    </aside>
-  )
-}
 
-function ElementAdder({ onAdd }: { onAdd: (element: MapElement) => void }) {
-  return (
-    <select
-      aria-label="Add a landmark"
-      value=""
-      className="min-h-11 border-2 border-ink bg-paper px-3 py-2 text-body text-ink"
-      onChange={(change) => {
-        const kind = change.target.value as MapElement['kind']
-        if (kind) {
-          onAdd({ kind, x: 0, y: -3, width: kind === 'STAGE' ? 8 : 3, height: 1.5 })
-          change.target.value = ''
-        }
-      }}
-    >
-      <option value="">Add a landmark…</option>
-      {ELEMENT_KINDS.map((kind) => (
-        <option key={kind} value={kind}>
-          {kind.charAt(0) + kind.slice(1).toLowerCase()}
-        </option>
-      ))}
-    </select>
+      {selectedElement && (
+        <LandmarkPanel
+          element={selectedElement.element}
+          onChange={(patch) => draft.updateElement(selectedElement.index, patch)}
+          onRemove={() => draft.removeElement(selectedElement.index)}
+        />
+      )}
+    </aside>
   )
 }
 
@@ -479,6 +491,108 @@ function GenerateRows({
       </div>
     </div>
   )
+}
+
+const ELEMENT_KINDS: MapElement['kind'][] = ['STAGE', 'ENTRANCE', 'AISLE', 'BAR', 'LABEL']
+
+/**
+ * A selected landmark, edited in place.
+ *
+ * The kind is a `<select>` here and that is the right control - it chooses a value and holds
+ * it, which is exactly what a select is for. The one in the toolbar that *performed* an
+ * action was not.
+ */
+function LandmarkPanel({
+  element,
+  onChange,
+  onRemove,
+}: {
+  element: MapElement
+  onChange: (patch: Partial<MapElement>) => void
+  onRemove: () => void
+}) {
+  const { width, height } = elementSize(element)
+  return (
+    <section className="space-y-4 border-t-2 border-ink pt-4">
+      <h3 className="text-label uppercase">Landmark</h3>
+      <Field label="Kind">
+        <select
+          className={inputClass}
+          value={element.kind}
+          onChange={(change) => onChange({ kind: change.target.value as MapElement['kind'] })}
+        >
+          {ELEMENT_KINDS.map((kind) => (
+            <option key={kind} value={kind}>
+              {kind.charAt(0) + kind.slice(1).toLowerCase()}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Label">
+        <input
+          className={inputClass}
+          value={element.label ?? ''}
+          maxLength={50}
+          onChange={(change) => onChange({ label: change.target.value })}
+        />
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Width">
+          <input
+            className={inputClass}
+            type="number"
+            step={0.5}
+            min={0.5}
+            value={width}
+            onChange={(change) => onChange({ width: Number(change.target.value) })}
+          />
+        </Field>
+        <Field label="Height">
+          <input
+            className={inputClass}
+            type="number"
+            step={0.5}
+            min={0.5}
+            value={height}
+            onChange={(change) => onChange({ height: Number(change.target.value) })}
+          />
+        </Field>
+      </div>
+      <Button variant="ghost" className="w-auto px-0" onClick={onRemove}>
+        Remove landmark
+      </Button>
+    </section>
+  )
+}
+
+/**
+ * Capture so a drag that leaves the map still moves what is being dragged. Guarded because it
+ * throws for a pointer the browser does not consider active, and losing the interaction
+ * entirely over a nice-to-have is a bad trade.
+ */
+function capture(event: React.PointerEvent) {
+  try {
+    event.currentTarget.setPointerCapture(event.pointerId)
+  } catch {
+    // Dragging still works; it just stops at the edge of the map.
+  }
+}
+
+/** A landmark starts where there is room for it: above the seats, centred on them. */
+function newLandmark(map: SeatMap): MapElement {
+  const xs = map.seats.map((seat) => seat.x)
+  const ys = map.seats.map((seat) => seat.y)
+  const width = 8
+  const centre = xs.length > 0 ? (Math.min(...xs) + Math.max(...xs)) / 2 : 0
+  const above = ys.length > 0 ? Math.min(...ys) - 3 : 0
+  return {
+    kind: 'STAGE',
+    label: 'Stage',
+    x: Math.round((centre - width / 2) * 10) / 10,
+    y: Math.round(above * 10) / 10,
+    width,
+    height: 1.5,
+  }
 }
 
 /** New blocks land below what is already there rather than on top of it. */

@@ -19,6 +19,10 @@ import { tierNamesInUse, validateSeatMap } from './validation'
 export function useSeatMapDraft(saved: SeatMap | undefined) {
   const [draft, setDraft] = useState<SeatMap | null>(null)
   const [selection, setSelection] = useState<Set<number>>(new Set())
+  // A landmark is selected on its own rather than joining the seat selection: the two are
+  // edited differently - seats move in bulk and take a tier, a landmark is one object with a
+  // kind and a size - and a mixed selection would have to explain which operations apply.
+  const [elementSelection, setElementSelection] = useState<number | null>(null)
   const [view, setView] = useState<Bounds | null>(null)
 
   // Memoised, and not for tidiness: `draft ?? saved ?? EMPTY` is a fresh object on every
@@ -100,22 +104,64 @@ export function useSeatMapDraft(saved: SeatMap | undefined) {
     [edit],
   )
 
+  /** Places a landmark and selects it, so the next thing you do is put it where it goes. */
   const addElement = useCallback(
-    (element: MapElement) => edit((current) => ({ ...current, elements: [...current.elements, element] })),
+    (element: MapElement) =>
+      edit((current) => {
+        setElementSelection(current.elements.length)
+        setSelection(new Set())
+        return { ...current, elements: [...current.elements, element] }
+      }),
     [edit],
   )
 
+  const updateElement = useCallback(
+    (target: number, patch: Partial<MapElement>) =>
+      edit((current) => ({
+        ...current,
+        elements: current.elements.map((element, index) =>
+          index === target ? { ...element, ...patch } : element,
+        ),
+      })),
+    [edit],
+  )
+
+  const moveElement = useCallback(
+    (target: number, dx: number, dy: number) =>
+      edit((current) => ({
+        ...current,
+        elements: current.elements.map((element, index) =>
+          index === target
+            ? { ...element, x: round(element.x + dx), y: round(element.y + dy) }
+            : element,
+        ),
+      })),
+    [edit],
+  )
+
+  const selectElement = useCallback((index: number | null) => {
+    setElementSelection(index)
+    if (index !== null) {
+      setSelection(new Set())
+    }
+  }, [])
+
   const removeElement = useCallback(
-    (index: number) =>
+    (index: number) => {
       edit((current) => ({
         ...current,
         elements: current.elements.filter((_, at) => at !== index),
-      })),
+      }))
+      // Indices after this one shift, so holding on to the old number would select a
+      // different landmark than the one that was there a moment ago.
+      setElementSelection(null)
+    },
     [edit],
   )
 
   const selectWithin = useCallback(
     (rect: Rect, additive: boolean) => {
+      setElementSelection(null)
       const inside = map.seats
         .map((seat, index) => [seat, index] as const)
         .filter(([seat]) => seatsWithin([seat], rect).length > 0)
@@ -126,6 +172,7 @@ export function useSeatMapDraft(saved: SeatMap | undefined) {
   )
 
   const toggle = useCallback((index: number, additive: boolean) => {
+    setElementSelection(null)
     setSelection((current) => {
       if (!additive) {
         return new Set([index])
@@ -146,6 +193,7 @@ export function useSeatMapDraft(saved: SeatMap | undefined) {
   const discard = useCallback(() => {
     setDraft(null)
     setSelection(new Set())
+    setElementSelection(null)
   }, [])
 
   return {
@@ -155,6 +203,8 @@ export function useSeatMapDraft(saved: SeatMap | undefined) {
     tiers,
     bounds,
     selection,
+    elementSelection,
+    selectElement,
     setView,
     addSeats,
     moveSelection,
@@ -162,6 +212,8 @@ export function useSeatMapDraft(saved: SeatMap | undefined) {
     deleteSelection,
     relabelSeat,
     addElement,
+    updateElement,
+    moveElement,
     removeElement,
     selectWithin,
     toggle,
