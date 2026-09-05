@@ -80,6 +80,16 @@ one document, so one duplicate label rejects two thousand good seats. A check th
 correct about aspect ratio, element size and ancestor transforms. Hand-rolled arithmetic is how
 a seat map selects the seat next to the one you clicked on a scrolled page.
 
+**`display: contents` and `space-y-*` do not mix.** A wrapper with `md:contents` leaves the box
+tree, so the parent's `space-y-4` — which targets direct children — applies its margins to a box
+that no longer exists, and everything inside loses its spacing silently. It cost a toolbar whose
+buttons painted their shadows into the panel below. Give a conditional wrapper its own spacing
+and make it a real block (`hidden space-y-4 md:block`).
+
+**Measure the painted extent, not the border box.** `getBoundingClientRect` excludes
+`box-shadow`, and in this system every raised control paints 4–6px past its box. Two elements
+can report a clean gap and still overlap on screen.
+
 **Tier colours are categorical, not semantic** — see DESIGN.md. A tier is not a state, and the
 four state colours would say things about VIP and Restricted View that are not true.
 

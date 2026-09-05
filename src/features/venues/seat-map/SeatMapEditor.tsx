@@ -97,7 +97,14 @@ export function SeatMapEditor({
         The seat map can be viewed here but not edited. Laying out seats needs a pointer and
         a wider screen — open this venue on a laptop to change it.
       </p>
-      <div className="hidden md:contents">
+      {/*
+        A real block, not `display: contents`. With `contents` the wrapper leaves the box
+        tree, so the parent's `space-y-4` - which targets direct children - applied its
+        margins to a box that does not exist and every control inside lost its spacing. The
+        toolbar, the note and the map ended up flush, with the buttons' shadows painting
+        into the note below them.
+      */}
+      <div className="hidden space-y-4 md:block">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
           <Button className="w-auto" onClick={() => setGenerating(true)}>
