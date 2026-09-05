@@ -3,9 +3,11 @@ import type { MapElement, SeatMap, SeatMapSeat } from '~/api/types'
 import { Button, Field, Problem, Segment, Segmented, cx, inputClass } from '~/shared/ui'
 import {
   FINE_SNAP,
+  boundsOf,
   elementSize,
   panBounds,
   rectBetween,
+  snap,
   zoomBounds,
   type Rect,
 } from './geometry'
@@ -159,7 +161,12 @@ export function SeatMapEditor({
           <Button
             variant="secondary"
             className="w-auto"
-            onClick={() => draft.addElement(newLandmark(draft.map))}
+            onClick={() => {
+              draft.addElement(newLandmark(draft.map))
+              // Refit, or a view pinned by an earlier drag leaves the new landmark outside
+              // the frame - which looks exactly like the button having done nothing.
+              draft.setView(null)
+            }}
           >
             Add landmark
           </Button>
@@ -732,20 +739,27 @@ function capture(event: React.PointerEvent) {
   }
 }
 
-/** A landmark starts where there is room for it: above the seats, centred on them. */
+/**
+ * A landmark starts clear of everything already on the map, centred and just above it.
+ *
+ * Measured against the whole content, elements included. Measuring against the seats alone
+ * gave every landmark the identical position, so the second one landed exactly on the first
+ * and the button appeared to do nothing at all - five of them stacked on one spot before
+ * anybody could tell.
+ */
 function newLandmark(map: SeatMap): MapElement {
-  const xs = map.seats.map((seat) => seat.x)
-  const ys = map.seats.map((seat) => seat.y)
+  const height = 1.5
   const width = 8
-  const centre = xs.length > 0 ? (Math.min(...xs) + Math.max(...xs)) / 2 : 0
-  const above = ys.length > 0 ? Math.min(...ys) - 3 : 0
+  const bounds = boundsOf(map)
+  const centre = bounds ? (bounds.minX + bounds.maxX) / 2 : 0
+  const clearOfEverything = bounds ? bounds.minY - height - 1 : 0
   return {
     kind: 'STAGE',
     label: 'Stage',
-    x: Math.round((centre - width / 2) * 10) / 10,
-    y: Math.round(above * 10) / 10,
+    x: snap(centre - width / 2),
+    y: snap(clearOfEverything),
     width,
-    height: 1.5,
+    height,
   }
 }
 

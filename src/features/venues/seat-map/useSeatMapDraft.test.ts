@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import type { SeatMap } from '~/api/types'
+import { boundsOf, snap } from './geometry'
 import { useSeatMapDraft } from './useSeatMapDraft'
 
 /**
@@ -178,5 +179,35 @@ describe('landmarks', () => {
     act(() => result.current.updateElement(0, { kind: 'ENTRANCE', label: 'Cửa vào' }))
 
     expect(result.current.map.elements[0]).toMatchObject({ kind: 'ENTRANCE', label: 'Cửa vào' })
+  })
+})
+
+describe('placing a landmark', () => {
+  it('never lands on one that is already there', () => {
+    // Every landmark used to be positioned from the seats alone, so the second one arrived
+    // exactly on top of the first and the button looked broken. Five stacked on one spot
+    // before it was obvious anything was wrong.
+    const { result } = renderHook(() => useSeatMapDraft(saved))
+    const place = () => {
+      const bounds = boundsOf(result.current.map)
+      const height = 1.5
+      act(() =>
+        result.current.addElement({
+          kind: 'STAGE',
+          label: 'Stage',
+          x: snap(bounds ? (bounds.minX + bounds.maxX) / 2 - 4 : 0),
+          y: snap(bounds ? bounds.minY - height - 1 : 0),
+          width: 8,
+          height,
+        }),
+      )
+    }
+
+    place()
+    place()
+    place()
+
+    const spots = result.current.map.elements.map((e) => `${e.x},${e.y}`)
+    expect(new Set(spots).size).toBe(3)
   })
 })
