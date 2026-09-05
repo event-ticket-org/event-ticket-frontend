@@ -17,7 +17,7 @@ export function SignInPage() {
         signIn.mutate({ email, password }, { onSuccess: () => void navigate('/') })
       }}
     >
-      <h1 className="text-2xl font-semibold">Sign in</h1>
+      <h1 className="text-title">Sign in</h1>
       <Problem error={signIn.error} />
       <Field label="Email">
         <input
@@ -40,8 +40,8 @@ export function SignInPage() {
         />
       </Field>
       <Button pending={signIn.isPending}>Sign in</Button>
-      <p className="text-sm text-slate-600">
-        No account? <Link className="underline" to="/register">Create one</Link>
+      <p className="text-body text-ink-soft">
+        No account? <Link className="underline underline-offset-4" to="/register">Create one</Link>
       </p>
     </form>
   )
@@ -57,15 +57,15 @@ export function RegisterPage() {
   // requirements/004 criterion 4 means an unverified account cannot buy anything.
   if (register.isSuccess) {
     return (
-      <div className="mx-auto mt-16 w-full max-w-sm space-y-3">
-        <h1 className="text-2xl font-semibold">Check your email</h1>
-        <p className="text-slate-600">
+      <div className="mx-auto mt-16 w-full max-w-sm space-y-4">
+        <h1 className="text-title">Check your email</h1>
+        <p className="text-ink-soft">
           We sent a link to <strong>{email}</strong>. Confirming it finishes your account and
           signs you in.
         </p>
-        <p className="text-sm text-slate-500">
+        <p className="text-body text-ink-soft">
           Running locally? The email is in the backend console, and in the
-          <code className="mx-1 rounded bg-slate-100 px-1">email_delivery</code> table.
+          <code className="mx-1 bg-paper-sunk px-1 font-numeric text-code">email_delivery</code> table.
         </p>
       </div>
     )
@@ -79,7 +79,7 @@ export function RegisterPage() {
         register.mutate({ email, password, displayName })
       }}
     >
-      <h1 className="text-2xl font-semibold">Create an account</h1>
+      <h1 className="text-title">Create an account</h1>
       <Problem error={register.error} />
       <Field label="Name">
         <input
@@ -111,8 +111,8 @@ export function RegisterPage() {
         />
       </Field>
       <Button pending={register.isPending}>Create account</Button>
-      <p className="text-sm text-slate-600">
-        Already have one? <Link className="underline" to="/sign-in">Sign in</Link>
+      <p className="text-body text-ink-soft">
+        Already have one? <Link className="underline underline-offset-4" to="/sign-in">Sign in</Link>
       </p>
     </form>
   )
@@ -133,11 +133,11 @@ export function VerifyEmailPage() {
   }, [token, mutate, navigate])
 
   return (
-    <div className="mx-auto mt-16 w-full max-w-sm space-y-3">
-      <h1 className="text-2xl font-semibold">Confirming your email</h1>
+    <div className="mx-auto mt-16 w-full max-w-sm space-y-4">
+      <h1 className="text-title">Confirming your email</h1>
       {!token && <Problem error={new Error('That link is missing its token.')} />}
       <Problem error={verify.error} />
-      {verify.isPending && <p className="text-slate-600">One moment…</p>}
+      {verify.isPending && <p className="text-ink-soft">One moment…</p>}
     </div>
   )
 }

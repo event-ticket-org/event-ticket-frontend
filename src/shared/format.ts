@@ -56,3 +56,15 @@ export function remainingUntil(iso: string, now: number = Date.now()): string | 
   const minutes = Math.floor(seconds / 60)
   return `${minutes}:${String(seconds % 60).padStart(2, '0')}`
 }
+
+/**
+ * The short name for a timezone, for the marker that goes beside every displayed time.
+ *
+ * A bare clock face is ambiguous in exactly the way that matters here: times render in
+ * the Venue's zone, so a buyer in Da Nang reads Hanoi's clock, and nothing on screen
+ * tells them it is not their own unless we say so.
+ */
+export function zoneLabel(timeZone: string): string {
+  const city = timeZone.split('/').pop() ?? timeZone
+  return city.replace(/_/g, ' ')
+}

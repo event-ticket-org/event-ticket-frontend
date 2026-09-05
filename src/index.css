@@ -1,1 +1,149 @@
 @import "tailwindcss";
+
+/* Self-hosted, not a CDN link. The scanner runs at a gate on venue wifi, and a font
+   that arrives late there is a screen an operator cannot read while a queue waits.
+   The vietnamese subset carries the diacritics and U+20AB, the dong sign, so both come
+   from Be Vietnam Pro rather than from a fallback face at a different weight. */
+@import "@fontsource/be-vietnam-pro/400.css";
+@import "@fontsource/be-vietnam-pro/700.css";
+@import "@fontsource/be-vietnam-pro/800.css";
+@import "@fontsource/be-vietnam-pro/900.css";
+@import "@fontsource-variable/jetbrains-mono";
+
+/**
+ * The tokens from DESIGN.md, and nothing else.
+ *
+ * Each group starts by clearing Tailwind's defaults. That is the point: with the default
+ * palette gone, `bg-slate-900` and `shadow-lg` stop existing, so a screen cannot quietly
+ * drift back to the generic baseline without someone noticing the class did nothing.
+ * A colour, size or shadow that is not here is a design decision - DESIGN.md first.
+ */
+@theme {
+  --color-*: initial;
+  --shadow-*: initial;
+  --radius-*: initial;
+
+  /* Surface */
+  --color-paper: #fdfbf4;
+  --color-paper-sunk: #efe9da;
+  --color-night: #0b0a09;
+  --color-night-raised: #1f1b18;
+
+  /* Ink. ink-soft is only ever used on paper: on paper-sunk it drops to 6.6:1. */
+  --color-ink: #14110f;
+  --color-ink-soft: #55504a;
+  --color-chalk: #fdfbf4;
+
+  /* State. Each means exactly one thing, and never decorates chrome - the primary
+     button is ink, so these are free to stay semantic. */
+  --color-go: #00c46a;
+  --color-stop: #ff3b2f;
+  --color-hold: #ffc400;
+  --color-info: #5cc8ff;
+
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --font-text: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-numeric: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
+  --default-font-family: var(--font-text);
+  --default-mono-font-family: var(--font-numeric);
+
+  /* Weight carries the hierarchy, so the scale skips 500 and 600 - the mid weights are
+     most of what makes an interface look generically competent. */
+  --text-display: 44px;
+  --text-display--line-height: 44px;
+  --text-display--font-weight: 900;
+  --text-display--letter-spacing: -0.02em;
+
+  --text-title: 30px;
+  --text-title--line-height: 32px;
+  --text-title--font-weight: 800;
+  --text-title--letter-spacing: -0.01em;
+
+  --text-heading: 20px;
+  --text-heading--line-height: 24px;
+  --text-heading--font-weight: 700;
+
+  --text-body: 16px;
+  --text-body--line-height: 24px;
+  --text-body--font-weight: 400;
+
+  --text-body-strong: 16px;
+  --text-body-strong--line-height: 24px;
+  --text-body-strong--font-weight: 700;
+
+  --text-label: 13px;
+  --text-label--line-height: 16px;
+  --text-label--font-weight: 700;
+  --text-label--letter-spacing: 0.06em;
+
+  --text-numeric: 16px;
+  --text-numeric--line-height: 20px;
+  --text-numeric--font-weight: 500;
+
+  --text-numeric-lg: 34px;
+  --text-numeric-lg--line-height: 36px;
+  --text-numeric-lg--font-weight: 700;
+  --text-numeric-lg--letter-spacing: -0.01em;
+
+  --text-code: 15px;
+  --text-code--line-height: 22px;
+  --text-code--font-weight: 500;
+  --text-code--letter-spacing: 0.02em;
+
+  --text-verdict: 72px;
+  --text-verdict--line-height: 68px;
+  --text-verdict--font-weight: 900;
+  --text-verdict--letter-spacing: -0.03em;
+
+  /* Solid offsets, zero blur. A blurred shadow is the first thing to disappear on a
+     phone at minimum brightness, which is where this product is hardest to read. */
+  --shadow-raised: 4px 4px 0 var(--color-ink);
+  --shadow-hover: 6px 6px 0 var(--color-ink);
+  --shadow-lifted: 8px 8px 0 var(--color-ink);
+
+  /* The same shadow, drawn as an outline, for elements that are themselves ink.
+     Ink on ink is invisible: a black button casting a black shadow onto paper reads
+     as a black button 4px larger, and the depth the whole system is built on
+     disappears from the one control people press most. Layered shadows paint front
+     to back, so the paper layer covers the middle of the ink layer and leaves a ring.
+
+     Do not pair these with a shadow-<color> utility: Tailwind substitutes one
+     --tw-shadow-color across both layers, which collapses the ring back into a solid. */
+  --shadow-raised-ghost: 4px 4px 0 var(--color-paper), 4px 4px 0 2px var(--color-ink);
+  --shadow-hover-ghost: 6px 6px 0 var(--color-paper), 6px 6px 0 2px var(--color-ink);
+
+  /* Radius means "this depicts a physical object", never "this is a UI element". */
+  --radius-full: 9999px;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Offset, not inset. A ring drawn on top of a 2px ink border is a ring nobody sees.
+     info reaches 10:1 on paper and 10.5:1 on night, so one treatment serves all three
+     shells. Never outline: none. */
+  :focus-visible {
+    outline: 3px solid var(--color-info);
+    outline-offset: 3px;
+  }
+
+  ::selection {
+    background-color: var(--color-info);
+    color: var(--color-ink);
+  }
+
+  /* Every figure a person compares or watches change. In a proportional face a countdown
+     reflows on each tick, and a timer that jitters reads as untrustworthy at exactly the
+     moment a buyer needs to trust it. */
+  .font-numeric,
+  code,
+  kbd {
+    font-variant-numeric: tabular-nums;
+  }
+}

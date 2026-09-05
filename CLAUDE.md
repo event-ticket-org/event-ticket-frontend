@@ -13,6 +13,18 @@ the contract: open a PR in the KB, merge it, copy the file, update `KB_REVISION`
 is **never committed** — a checked-in copy is a contract that has quietly stopped being
 normative. A contract change the code has not caught up with fails `tsc`, not a user.
 
+## The design system is normative too
+
+[DESIGN.md](DESIGN.md) is the single source of truth for how this product looks and behaves —
+palette, type, elevation, every component's state set, and the specific patterns this project
+refuses. Read it before writing any markup. A component that disagrees with it is a bug, not a
+variation. A screen needing a colour, size or shadow that is not a token there is a design
+decision: change the document first.
+
+The style is neo-brutalism, and it is chosen for reasons that are measurable rather than for
+taste — hard borders survive a phone at minimum brightness held at a gate at night, and flat
+fills give the seat map five states distinguishable without colour.
+
 ## One application, three shells
 
 requirements/007 puts the scanner in the same application as everything else with a layout of
