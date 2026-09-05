@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import type { MapElement, SeatMap } from '~/api/types'
 import { boundsOf, padBounds, seatsWithin, snap, type Bounds, type Rect } from './geometry'
 import { generateBlock, type BlockSpec } from './generator'
@@ -24,6 +24,20 @@ export function useSeatMapDraft(saved: SeatMap | undefined) {
   // kind and a size - and a mixed selection would have to explain which operations apply.
   const [elementSelection, setElementSelection] = useState<number | null>(null)
   const [view, setView] = useState<Bounds | null>(null)
+  /**
+   * Where the dragged things were when the drag began.
+   *
+   * Every move is computed from here plus the total distance travelled, never from the last
+   * frame. Applying each frame's delta on top of the previous *snapped* result compounds the
+   * rounding: a three-pixel nudge rounds up to a whole quarter-unit, that becomes the new
+   * base, and the seat leaves the cursor behind at roughly twice its speed. Absolute from
+   * the origin has no accumulated error, and a movement smaller than the snap simply does
+   * not move anything rather than being silently lost.
+   */
+  const dragOrigin = useRef<{
+    seats: Map<number, { x: number; y: number }>
+    element: { index: number; x: number; y: number } | null
+  }>({ seats: new Map(), element: null })
 
   // Memoised, and not for tidiness: `draft ?? saved ?? EMPTY` is a fresh object on every
   // render when both are null, so everything derived from it would recompute over all two
@@ -61,20 +75,55 @@ export function useSeatMapDraft(saved: SeatMap | undefined) {
     [edit],
   )
 
-  const moveSelection = useCallback(
-    (dx: number, dy: number) =>
+  /**
+   * Remembers where the things being dragged are, so the drag can be absolute.
+   *
+   * Takes the indices rather than reading `selection`, because the seat under the pointer is
+   * usually selected by the very handler that starts the drag - and a state setter has not
+   * taken effect by the next line, so reading `selection` here snapshots the selection as it
+   * was *before* the click and the drag moves nothing at all.
+   */
+  const beginDrag = useCallback(
+    (seatIndices: Iterable<number>, element: number | null) => {
+      const seats = new Map<number, { x: number; y: number }>()
+      for (const index of seatIndices) {
+        const seat = map.seats[index]
+        if (seat) {
+          seats.set(index, { x: seat.x, y: seat.y })
+        }
+      }
+      const target = element === null ? undefined : map.elements[element]
+      dragOrigin.current = {
+        seats,
+        element:
+          element !== null && target ? { index: element, x: target.x, y: target.y } : null,
+      }
+    },
+    [map.seats, map.elements],
+  )
+
+  /**
+   * Total distance from where the drag started, not the step since the last frame.
+   *
+   * Snapped, so that dropping one seat on another is an exact collision the validator can
+   * see - a drag measured in pixels never lands on another seat's coordinates by equality,
+   * so overlaps used to pass straight through.
+   */
+  const dragSelectionTo = useCallback(
+    (dx: number, dy: number, step?: number) => {
+      const origin = dragOrigin.current.seats
+      if (origin.size === 0) {
+        return
+      }
       edit((current) => ({
         ...current,
-        // Snapped, so that dropping one seat on another is an exact collision the
-        // validator can see. A drag measured in pixels never lands on another seat's
-        // coordinates by equality, so overlaps used to pass straight through.
-        seats: current.seats.map((seat, index) =>
-          selection.has(index)
-            ? { ...seat, x: snap(seat.x + dx), y: snap(seat.y + dy) }
-            : seat,
-        ),
-      })),
-    [edit, selection],
+        seats: current.seats.map((seat, index) => {
+          const from = origin.get(index)
+          return from ? { ...seat, x: snap(from.x + dx, step), y: snap(from.y + dy, step) } : seat
+        }),
+      }))
+    },
+    [edit],
   )
 
   const retierSelection = useCallback(
@@ -129,6 +178,25 @@ export function useSeatMapDraft(saved: SeatMap | undefined) {
     [edit],
   )
 
+  const dragElementTo = useCallback(
+    (dx: number, dy: number, step?: number) => {
+      const origin = dragOrigin.current.element
+      if (!origin) {
+        return
+      }
+      edit((current) => ({
+        ...current,
+        elements: current.elements.map((element, index) =>
+          index === origin.index
+            ? { ...element, x: snap(origin.x + dx, step), y: snap(origin.y + dy, step) }
+            : element,
+        ),
+      }))
+    },
+    [edit],
+  )
+
+  /** Nudging with the keyboard is still relative, and has no cursor to drift from. */
   const moveElement = useCallback(
     (target: number, dx: number, dy: number) =>
       edit((current) => ({
@@ -211,7 +279,9 @@ export function useSeatMapDraft(saved: SeatMap | undefined) {
     selectElement,
     setView,
     addSeats,
-    moveSelection,
+    beginDrag,
+    dragSelectionTo,
+    dragElementTo,
     retierSelection,
     deleteSelection,
     relabelSeat,

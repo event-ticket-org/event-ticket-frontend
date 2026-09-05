@@ -219,7 +219,7 @@ function Element({
   return (
     <g
       data-element={interactive ? index : undefined}
-      className={interactive ? 'cursor-move' : 'pointer-events-none'}
+      className={interactive ? 'cursor-grab active:cursor-grabbing' : 'pointer-events-none'}
     >
       <rect
         x={element.x}

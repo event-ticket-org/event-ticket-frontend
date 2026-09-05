@@ -30,8 +30,23 @@ export const SEAT_RADIUS = 0.42
  */
 export const SNAP = 0.25
 
-export function snap(value: number): number {
-  return Math.round(value / SNAP) * SNAP
+/**
+ * The lattice while a modifier is held.
+ *
+ * Every editor that snaps continuously - Excalidraw, tldraw, Google Slides - also ships a
+ * key that escapes the grid, because a grid that cannot be escaped fights the person using
+ * it. Turning snapping *off* is not available here: exact coordinates are what makes two
+ * stacked seats detectable at all. A finer lattice gives the same freedom in the hand while
+ * keeping every position exactly representable, and so still collidable.
+ */
+export const FINE_SNAP = 0.05
+
+export function snap(value: number, step: number = SNAP): number {
+  // Rounded again after the multiply. `Math.round(1.97 / 0.05) * 0.05` is
+  // 1.9500000000000002, and a coordinate carrying float noise defeats the exact-equality
+  // comparison this lattice exists to make possible - as well as travelling to the server
+  // that way.
+  return Math.round((Math.round(value / step) * step) * 1e4) / 1e4
 }
 
 export function boundsOf(map: Pick<SeatMap, 'seats' | 'elements'>): Bounds | null {

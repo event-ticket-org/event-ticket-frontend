@@ -1,7 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { MapElement, SeatMap, SeatMapSeat } from '~/api/types'
 import { Button, Field, Problem, Segment, Segmented, cx, inputClass } from '~/shared/ui'
-import { elementSize, panBounds, rectBetween, zoomBounds, type Rect } from './geometry'
+import {
+  FINE_SNAP,
+  elementSize,
+  panBounds,
+  rectBetween,
+  zoomBounds,
+  type Rect,
+} from './geometry'
 import { SeatMapView } from './SeatMapView'
 import { describeProblem } from './validation'
 import { useSeatMapDraft } from './useSeatMapDraft'
@@ -18,8 +25,10 @@ const TIER_FILLS = [
 
 type Drag =
   | { kind: 'marquee'; from: { x: number; y: number }; to: { x: number; y: number }; additive: boolean }
-  | { kind: 'move'; from: { x: number; y: number }; last: { x: number; y: number } }
-  | { kind: 'move-element'; index: number; last: { x: number; y: number } }
+  // `from` is where the pointer went down. Everything is measured from there rather than
+  // from the previous frame, so rounding cannot accumulate and outrun the cursor.
+  | { kind: 'move'; from: { x: number; y: number } }
+  | { kind: 'move-element'; from: { x: number; y: number } }
   | { kind: 'pan'; last: { x: number; y: number } }
 
 export function SeatMapEditor({
@@ -38,6 +47,8 @@ export function SeatMapEditor({
 }) {
   const draft = useSeatMapDraft(saved)
   const [drag, setDrag] = useState<Drag | null>(null)
+  const pending = useRef<{ x: number; y: number } | null>(null)
+  const frame = useRef<number | null>(null)
   const [generating, setGenerating] = useState(false)
   const { selection, deleteSelection, dirty, elementSelection, removeElement } = draft
 
@@ -71,6 +82,33 @@ export function SeatMapEditor({
     return () => window.removeEventListener('keydown', onKey)
   }, [selection, deleteSelection, elementSelection, removeElement])
 
+  /**
+   * At most one update per frame.
+   *
+   * A pointer reports at 120Hz or more, and each report here rebuilds the seat array,
+   * revalidates every seat and re-renders every circle. Coalescing to the frame the browser
+   * is actually going to paint is the difference between a drag that tracks the hand and one
+   * that arrives late; the last point is always applied, so nothing is dropped at the end.
+   */
+  const schedule = useCallback((apply: (point: { x: number; y: number }) => void) => {
+    if (frame.current !== null) {
+      return
+    }
+    frame.current = requestAnimationFrame(() => {
+      frame.current = null
+      const point = pending.current
+      if (point) {
+        apply(point)
+      }
+    })
+  }, [])
+
+  useEffect(() => () => {
+    if (frame.current !== null) {
+      cancelAnimationFrame(frame.current)
+    }
+  }, [])
+
   const tierFill = (seat: SeatMapSeat) => {
     const index = draft.tiers.indexOf(seat.tierName)
     return TIER_FILLS[index % TIER_FILLS.length] ?? 'fill-paper-sunk'
@@ -78,7 +116,10 @@ export function SeatMapEditor({
 
   const seatClass = (seat: SeatMapSeat, index: number) =>
     cx(
-      'stroke-ink cursor-pointer',
+      'stroke-ink',
+      // grab, not pointer: a seat is moved, not followed. The cursor is the only thing
+      // that says so before somebody tries it.
+      drag?.kind === 'move' ? 'cursor-grabbing' : 'cursor-grab',
       draft.selection.has(index) ? 'fill-info stroke-[0.16]' : tierFill(seat),
     )
 
@@ -197,18 +238,38 @@ export function SeatMapEditor({
             selectedElement={draft.elementSelection}
             ariaLabel="Seat map editor"
             className="h-[32rem] w-full"
-            onSeatPointerDown={(seat, index, event) => {
+            onSeatPointerDown={(_seat, index, event) => {
               capture(event)
-              const additive = event.shiftKey || event.metaKey || event.ctrlKey
-              if (additive || !draft.selection.has(index)) {
-                draft.toggle(index, additive)
+
+              // A modifier click adjusts the selection and nothing else. Starting a drag
+              // from one would move a seat the person was in the middle of deselecting.
+              if (event.shiftKey || event.metaKey || event.ctrlKey) {
+                draft.toggle(index, true)
+                return
               }
-              setDrag({ kind: 'move', from: { x: seat.x, y: seat.y }, last: { x: seat.x, y: seat.y } })
+
+              // Worked out here, not read back from state: `toggle` has not taken effect by
+              // the next line, so the seat just clicked would be missing from the snapshot.
+              const dragging = draft.selection.has(index)
+                ? draft.selection
+                : new Set([index])
+              if (!draft.selection.has(index)) {
+                draft.toggle(index, false)
+              }
+
+              // Pinned before anything moves. With no pinned view the map re-fits to its
+              // own content on every frame, so dragging a seat outward slides the whole
+              // room under the cursor - which reads as the drag fighting back.
+              draft.setView(draft.bounds)
+              draft.beginDrag(dragging, null)
+              setDrag({ kind: 'move', from: pointOfEvent(event) })
             }}
             onElementPointerDown={(_element, index, point, event) => {
               capture(event)
               draft.selectElement(index)
-              setDrag({ kind: 'move-element', index, last: point })
+              draft.setView(draft.bounds)
+              draft.beginDrag([], index)
+              setDrag({ kind: 'move-element', from: point })
             }}
             onBackgroundPointerDown={(point, event) => {
               draft.selectElement(null)
@@ -223,28 +284,39 @@ export function SeatMapEditor({
                 additive: event.shiftKey || event.metaKey || event.ctrlKey,
               })
             }}
-            onPointerMove={(point) => {
+            onPointerMove={(point, event) => {
               if (!drag) {
                 return
               }
+              pending.current = point
+              // Held down, placement drops to a fine lattice. Not off: exact coordinates are
+              // what makes two stacked seats detectable.
+              const step = event.metaKey || event.ctrlKey ? FINE_SNAP : undefined
               if (drag.kind === 'marquee') {
-                setDrag({ ...drag, to: point })
+                schedule((at) => setDrag({ ...drag, to: at }))
               } else if (drag.kind === 'move') {
-                draft.moveSelection(point.x - drag.last.x, point.y - drag.last.y)
-                setDrag({ ...drag, last: point })
+                schedule((at) => draft.dragSelectionTo(at.x - drag.from.x, at.y - drag.from.y, step))
               } else if (drag.kind === 'move-element') {
-                draft.moveElement(drag.index, point.x - drag.last.x, point.y - drag.last.y)
-                setDrag({ ...drag, last: point })
+                schedule((at) => draft.dragElementTo(at.x - drag.from.x, at.y - drag.from.y, step))
               } else {
+                // Panning is the exception: it moves the frame rather than the content, so
+                // the previous point is the right reference and there is nothing to snap.
                 draft.setView(
                   panBounds(draft.bounds, drag.last.x - point.x, drag.last.y - point.y),
                 )
+                setDrag({ ...drag, last: point })
               }
             }}
-            onPointerUp={() => {
-              if (drag?.kind === 'marquee') {
-                draft.selectWithin(rectBetween(drag.from, drag.to), drag.additive)
+            onPointerUp={(point) => {
+              // The last point always lands, even if it arrived between frames.
+              if (drag?.kind === 'move') {
+                draft.dragSelectionTo(point.x - drag.from.x, point.y - drag.from.y)
+              } else if (drag?.kind === 'move-element') {
+                draft.dragElementTo(point.x - drag.from.x, point.y - drag.from.y)
+              } else if (drag?.kind === 'marquee') {
+                draft.selectWithin(rectBetween(drag.from, point), drag.additive)
               }
+              pending.current = null
               setDrag(null)
             }}
             onZoom={(point, factor) =>
@@ -641,6 +713,17 @@ function LandmarkPanel({
  * throws for a pointer the browser does not consider active, and losing the interaction
  * entirely over a nice-to-have is a bad trade.
  */
+/** The pointer in map coordinates, taken from the seat that was hit. */
+function pointOfEvent(event: React.PointerEvent): { x: number; y: number } {
+  const svg = event.currentTarget as unknown as SVGSVGElement
+  const matrix = svg.getScreenCTM?.()
+  if (!matrix) {
+    return { x: 0, y: 0 }
+  }
+  const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse())
+  return { x: point.x, y: point.y }
+}
+
 function capture(event: React.PointerEvent) {
   try {
     event.currentTarget.setPointerCapture(event.pointerId)

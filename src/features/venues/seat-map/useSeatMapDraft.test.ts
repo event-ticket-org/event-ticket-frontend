@@ -51,7 +51,8 @@ describe('a seat is identified by index, not by label', () => {
 
     act(() => result.current.relabelSeat(1, 'A1'))
     act(() => result.current.toggle(1, false))
-    act(() => result.current.moveSelection(5, 0))
+    act(() => result.current.beginDrag([1], null))
+    act(() => result.current.dragSelectionTo(5, 0))
 
     expect(result.current.map.seats[0]).toMatchObject({ x: 0, y: 0 })
     expect(result.current.map.seats[1]).toMatchObject({ x: 5, y: 1 })

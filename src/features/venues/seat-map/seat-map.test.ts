@@ -4,6 +4,7 @@ import {
   boundsOf,
   panBounds,
   rectBetween,
+  FINE_SNAP,
   seatsWithin,
   snap,
   viewBoxOf,
@@ -264,6 +265,27 @@ describe('snapping', () => {
   it('makes two seats dragged to the same place collide detectably', () => {
     const a = { label: 'A1', x: snap(1.988), y: snap(0.994), tierName: 'S' }
     const b = { label: 'B7', x: snap(2.02), y: snap(1.01), tierName: 'S' }
+    expect(validateSeatMap({ seats: [a, b] })).toContainEqual({
+      kind: 'SHARED_POSITION',
+      labels: ['A1', 'B7'],
+      x: 2,
+      y: 1,
+    })
+  })
+})
+
+describe('the fine lattice', () => {
+  it('is finer, and still a lattice', () => {
+    // Escaping the grid entirely is not on offer: exact coordinates are the only reason two
+    // stacked seats are detectable at all. A finer step frees the hand without giving that up.
+    expect(snap(1.988, FINE_SNAP)).toBe(2)
+    expect(snap(1.97, FINE_SNAP)).toBe(1.95)
+    expect(snap(2.13, FINE_SNAP)).toBeCloseTo(2.15)
+  })
+
+  it('still makes an exact stack detectable', () => {
+    const a = { label: 'A1', x: snap(2.01, FINE_SNAP), y: snap(0.99, FINE_SNAP), tierName: 'S' }
+    const b = { label: 'B7', x: snap(1.99, FINE_SNAP), y: snap(1.01, FINE_SNAP), tierName: 'S' }
     expect(validateSeatMap({ seats: [a, b] })).toContainEqual({
       kind: 'SHARED_POSITION',
       labels: ['A1', 'B7'],
