@@ -41,6 +41,18 @@
   --color-hold: #ffc400;
   --color-info: #5cc8ff;
 
+  /* Categorical, not semantic. A Pricing Tier is a category with no ordering and no
+     meaning attached to any particular member, and there can be more of them than the state
+     scale has colours - painting VIP with `go` and Restricted View with `stop` would say
+     something about them that is not true. Used only inside the seat map and its legend,
+     where the legend always names the tier, so colour is an aid and never the only signal. */
+  --color-tier-1: #6b4fd8;
+  --color-tier-2: #c2571f;
+  --color-tier-3: #1f7a6b;
+  --color-tier-4: #a83a72;
+  --color-tier-5: #7a7a1f;
+  --color-tier-6: #3c4e8c;
+
   --color-transparent: transparent;
   --color-current: currentColor;
 

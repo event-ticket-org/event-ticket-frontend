@@ -64,6 +64,25 @@ and accepts the same string back; it never produces or parses an image. The tick
 the string as a QR, the scanner decodes a QR back to the string. Seat, event and validity are
 resolved server-side at scan time (KB invariant 16).
 
+## The seat map
+
+**A seat is identified by its index in the array, never by its label.** A Seat Map has no ids
+and a label is unique only in a *valid* map — which is precisely the state an editor spends its
+time outside. Keyed by label, renaming B1 to A1 selects both seats, moves both and renames
+both, so a duplicate can never be repaired; it also hands React two children with the same key.
+Nothing reorders the array, which is what makes the index stable.
+
+**Validate as you type, matching `SeatMapDocument.validated()` exactly.** The map is saved as
+one document, so one duplicate label rejects two thousand good seats. A check that is merely
+*similar* to the server's is worse than none: it lets through the edits the two disagree about.
+
+**Fitting is SVG's `viewBox`, and pointer conversion is `getScreenCTM()`.** Both are already
+correct about aspect ratio, element size and ancestor transforms. Hand-rolled arithmetic is how
+a seat map selects the seat next to the one you clicked on a scrolled page.
+
+**Tier colours are categorical, not semantic** — see DESIGN.md. A tier is not a state, and the
+four state colours would say things about VIP and Restricted View that are not true.
+
 ## Talking to the backend
 
 ```bash

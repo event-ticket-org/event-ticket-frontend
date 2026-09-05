@@ -143,6 +143,23 @@ desaturated red that reached 7:1 would be a salmon, and a salmon does not read a
 **`{colors.ink-soft}` is only ever used on `{colors.paper}`.** On `{colors.paper-sunk}` it drops to
 6.6:1; use `{colors.ink}` there.
 
+### Pricing Tier colours, which are categorical rather than semantic
+
+```
+tier-1  #6B4FD8    tier-3  #1F7A6B    tier-5  #7A7A1F
+tier-2  #C2571F    tier-4  #A83A72    tier-6  #3C4E8C
+```
+
+The four state colours answer *what is true of this seat right now* — available, held, sold. A
+Pricing Tier is not a state: it is a category with no ordering, no meaning attached to any
+particular member, and no fixed number of them. Painting VIP with `{colors.go}` and Restricted
+View with `{colors.stop}` would say something about those tiers that is not true.
+
+So tiers get their own scale, and it is deliberately muted where the state scale is vivid — the
+two are never shown together, but a tier should not look like a verdict. **These are used only
+inside the seat map and its legend**, and the legend always names the tier, so colour is an aid
+rather than the only signal. Beyond six tiers the scale repeats; see [Known Gaps](#known-gaps).
+
 ### Colour is never the only signal
 
 Required by requirements/007 at a door and by ordinary accessibility everywhere else. Every state
@@ -698,6 +715,10 @@ shadow that is not a token, that is a design decision — bring it here first.
 
 Honest list of what this document does not yet decide.
 
+- **The tier scale repeats after six.** A Venue with seven Pricing Tiers gets two the same
+  colour. The legend still names them and selecting a tier still highlights it, so nothing is
+  ambiguous — but the map stops being readable at a glance, and a seventh tier is a signal the
+  scale needs patterns rather than more hues.
 - **No icon set is chosen.** The components above avoid icons deliberately, but the scanner's camera
   controls and the seat map editor's tools will need them. A stroke-only set at 2px to match the
   border weight is the constraint; the specific set is undecided.
