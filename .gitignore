@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.DS_Store
+*.local
+
+# Generated from contracts/openapi.yaml at build time, never committed. A stale
+# checked-in copy is a contract that has quietly stopped being normative.
+src/api/schema.d.ts
