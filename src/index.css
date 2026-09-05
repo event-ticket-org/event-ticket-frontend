@@ -103,6 +103,17 @@
   --shadow-hover: 6px 6px 0 var(--color-ink);
   --shadow-lifted: 8px 8px 0 var(--color-ink);
 
+  /* The same shadow, drawn as an outline, for elements that are themselves ink.
+     Ink on ink is invisible: a black button casting a black shadow onto paper reads
+     as a black button 4px larger, and the depth the whole system is built on
+     disappears from the one control people press most. Layered shadows paint front
+     to back, so the paper layer covers the middle of the ink layer and leaves a ring.
+
+     Do not pair these with a shadow-<color> utility: Tailwind substitutes one
+     --tw-shadow-color across both layers, which collapses the ring back into a solid. */
+  --shadow-raised-ghost: 4px 4px 0 var(--color-paper), 4px 4px 0 2px var(--color-ink);
+  --shadow-hover-ghost: 6px 6px 0 var(--color-paper), 6px 6px 0 2px var(--color-ink);
+
   /* Radius means "this depicts a physical object", never "this is a UI element". */
   --radius-full: 9999px;
 }

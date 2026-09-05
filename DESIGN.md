@@ -264,6 +264,21 @@ elevation.raised   4px 4px 0 {colors.ink}      Cards, buttons, chips, popovers
 elevation.lifted   8px 8px 0 {colors.ink}      Modals, the scan verdict
 ```
 
+**An ink-filled element casts its shadow as an outline, not as a solid.** Ink on ink is
+invisible: a black button dropping a black shadow onto paper reads as a black button four
+pixels larger, and the depth this whole system is built on disappears from the control people
+press most. `elevation.raised-ghost` layers a paper fill over an ink spread so the shadow
+appears as a 2px outlined offset instead.
+
+```
+elevation.raised-ghost   4px 4px 0 {colors.paper}, 4px 4px 0 2px {colors.ink}
+elevation.hover-ghost    6px 6px 0 {colors.paper}, 6px 6px 0 2px {colors.ink}
+```
+
+This is the only place in the system where a token exists because of how something renders
+rather than because of what it means. It was found by looking at the built page, not by
+reading the CSS — the computed style was exactly what this document asked for.
+
 **Borders are the primary elevation system; shadow is secondary.**
 
 ```
@@ -328,7 +343,7 @@ are missing from the design, not left to the implementer.
 
 | Variant | Fill | Text | Border | Shadow |
 |---|---|---|---|---|
-| primary | `{colors.ink}` | `{colors.chalk}` | `{border.default}` | `{elevation.raised}` |
+| primary | `{colors.ink}` | `{colors.chalk}` | `{border.default}` | `{elevation.raised-ghost}` |
 | secondary | `{colors.paper}` | `{colors.ink}` | `{border.default}` | `{elevation.raised}` |
 | destructive | `{colors.stop}` | `{colors.ink}` | `{border.default}` | `{elevation.raised}` |
 | ghost | none | `{colors.ink}`, underlined | none | none |

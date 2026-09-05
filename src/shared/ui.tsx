@@ -83,7 +83,8 @@ export const inputClass =
 type ButtonVariant = 'primary' | 'secondary' | 'destructive' | 'ghost'
 
 const variants: Record<ButtonVariant, string> = {
-  primary: `border-2 border-ink bg-ink text-chalk shadow-raised hover:shadow-hover ${press}`,
+  // ghost, not solid: an ink shadow behind an ink button is invisible.
+  primary: `border-2 border-ink bg-ink text-chalk shadow-raised-ghost hover:shadow-hover-ghost ${press}`,
   secondary: `border-2 border-ink bg-paper text-ink shadow-raised hover:shadow-hover ${press}`,
   // ink on stop, not chalk: the rule is that text on any state fill is ink.
   destructive: `border-2 border-ink bg-stop text-ink shadow-raised hover:shadow-hover ${press}`,
