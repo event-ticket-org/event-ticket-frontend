@@ -53,6 +53,8 @@ export type NextAction = Schemas['NextAction']
 export type Ticket = Schemas['Ticket']
 export type Refund = Schemas['Refund']
 export type EventCancellation = Schemas['EventCancellation']
+export type OrderRefundState = Schemas['OrderRefundState']
+export type RefundStatus = Schemas['RefundStatus']
 
 export type ScanResult = Schemas['ScanResult']
 export type ScanOutcome = Schemas['ScanOutcome']
