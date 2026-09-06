@@ -1,0 +1,13 @@
+# `.env.local` is the one that matters. It is a developer's own settings - it currently pins
+# VITE_PAYMENT_PROVIDER - and Vite reads it during the build, so copying it in would let
+# whatever is on somebody's laptop decide what the image does, silently and in a file the
+# image never mentions. The build argument is meant to be the only answer to that question.
+.env.local
+.env.*.local
+
+node_modules/
+dist/
+.vite/
+.git/
+.github/
+*.md

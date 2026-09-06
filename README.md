@@ -39,6 +39,20 @@ writes them out, and they are also rows in `email_delivery`.
 webhook, never by the buyer returning to the site (requirements/005 criterion 3). Until
 something posts that webhook, an order stays `AWAITING_PAYMENT` and no tickets exist.
 
+## Running it as a container
+
+```bash
+docker build --build-arg VITE_PAYMENT_PROVIDER=FAKE -t event-ticket-frontend:local .
+```
+
+nginx serves the build and proxies `/api` to `BACKEND_ORIGIN`, so the browser sees one origin
+in production exactly as it does behind Vite's proxy in development. The payment provider is a
+build argument rather than an environment variable, because `import.meta.env` is replaced at
+build time - a different provider is a different image.
+
+[event-ticket-deploy](https://github.com/event-ticket-org/event-ticket-deploy) runs this
+alongside the backend, Postgres and MinIO.
+
 ## Commands
 
 | | |

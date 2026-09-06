@@ -160,6 +160,26 @@ Two things the API deliberately will not do for you locally, both of them the sy
   webhook, never by the buyer returning (requirements/005 criterion 3). An order will sit
   `AWAITING_PAYMENT` until something acts as the provider — see the backend's scripts.
 
+## One origin, in production too
+
+Vite's proxy has a deployed counterpart: `nginx/default.conf.template`, built into the image.
+It serves the client and proxies `/api` to the backend, because `client.ts` asks for `/api/v1`
+relative to wherever it was served and never learns a backend address. Two things in there are
+not decoration:
+
+**The API location comes before the SPA fallback.** `try_files ... /index.html` would otherwise
+answer `/api/v1/anything` with a 200 carrying HTML, which surfaces as a JSON parse error rather
+than as a routing mistake.
+
+**nginx listens on IPv6 as well.** Inside a container `localhost` resolves to `::1` first, so an
+IPv4-only listener serves every real request perfectly and refuses every connection made by name
+from inside itself. That is how it was found: the site worked and the container's healthcheck
+never once went green, which quietly made `depends_on: service_healthy` mean nothing.
+
+`VITE_PAYMENT_PROVIDER` is a build argument, because `import.meta.env` is replaced at build
+time - a different provider is a different image. `.env.local` is in `.dockerignore` so a
+developer's own setting cannot decide what an image does.
+
 ## The API client
 
 `src/api/client.ts` is written by hand while the types are generated, because the three things

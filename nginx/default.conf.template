@@ -1,0 +1,71 @@
+# The one origin, in production.
+#
+# In development Vite's proxy does this job, and the note in vite.config.ts says why: the
+# browser sees a single origin, so CORS never enters the picture and nothing permissive can be
+# left switched on by accident. This file is the deployed half of the same arrangement, and it
+# has to exist for the client to work at all - src/api/client.ts asks for `/api/v1` relative to
+# wherever it was served from, and never learns a backend address.
+#
+# A template rather than a finished config: the official nginx image runs envsubst over
+# /etc/nginx/templates at start-up, so BACKEND_ORIGIN can name whatever the backend is called
+# in a given deployment. Only names that are set in the environment are substituted, which is
+# why $uri and $host below survive it.
+
+server {
+    listen 80;
+    # And IPv6, because inside a container `localhost` resolves to ::1 first. An IPv4-only
+    # listener answers real traffic perfectly and refuses every connection made by name from
+    # inside itself - which is how this was found: the container served every page while its
+    # healthcheck never once went green.
+    listen [::]:80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+    gzip_min_length 1024;
+
+    # Vite fingerprints every asset it emits, so the file at a given name can never change and
+    # a year is not a risk. This is also what keeps the fonts - which are most of the weight
+    # here - out of every subsequent page load.
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # The API first, or the SPA fallback below would answer /api/v1/anything with index.html:
+    # a 200 carrying HTML where the client expects JSON, which surfaces as a parse error
+    # rather than as a routing mistake.
+    location /api/ {
+        proxy_pass ${BACKEND_ORIGIN};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # A webhook is verified over its raw bytes, so nothing here may touch the body.
+        proxy_request_buffering off;
+
+        # A cover upload is a form the browser posts elsewhere, but an event page, a seat map
+        # and a scan all travel through here and none of them should wait on a default that
+        # was chosen for slow upstreams.
+        proxy_read_timeout 60s;
+    }
+
+    # React Router uses history routing, so /events/<id> is a real URL somebody bookmarks,
+    # shares and reloads - and there is no file at that path. Without this, every route but
+    # the root is a 404 on refresh, which is the classic way a working SPA looks broken only
+    # in production.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # index.html names the fingerprinted assets, so a cached copy of it pins the whole
+    # application to an old build. It is small; it is fetched every time.
+    location = /index.html {
+        add_header Cache-Control "no-cache";
+    }
+}
