@@ -7,6 +7,7 @@ import { formatMoney } from '~/shared/format'
 import {
   Button,
   Card,
+  CoverImage,
   Field,
   Problem,
   StatusChip,
@@ -95,11 +96,21 @@ function Details({ eventId, event }: { eventId: string; event: Event }) {
   const [form, setForm] = useState({
     title: event.title,
     description: event.description ?? '',
+    coverImageUrl: event.coverImageUrl ?? '',
     listed: event.listed ?? true,
   })
+  /**
+   * Emptying the field is not a change, because there is nothing to send for it: `EventPatch`
+   * types `coverImageUrl` as a plain `uri`, so absent means "unchanged" and there is no value
+   * that means "remove". Sending `""` would be an invalid URI; sending nothing would leave the
+   * cover in place while the form claimed it had saved. Saying so is the only honest option
+   * until the contract has a way to express it.
+   */
+  const clearing = form.coverImageUrl === '' && (event.coverImageUrl ?? '') !== ''
   const changed =
     form.title !== event.title ||
     form.description !== (event.description ?? '') ||
+    (!clearing && form.coverImageUrl !== (event.coverImageUrl ?? '')) ||
     form.listed !== (event.listed ?? true)
 
   return (
@@ -114,6 +125,7 @@ function Details({ eventId, event }: { eventId: string; event: Event }) {
           update.mutate({
             title: form.title,
             description: form.description,
+            ...(form.coverImageUrl === '' ? {} : { coverImageUrl: form.coverImageUrl }),
             listed: form.listed,
           })
         }}
@@ -137,6 +149,42 @@ function Details({ eventId, event }: { eventId: string; event: Event }) {
             onChange={(change) => setForm({ ...form, description: change.target.value })}
           />
         </Field>
+        {/*
+          A link rather than an upload, because the contract has no upload - see DESIGN.md's
+          Known Gaps. Which makes the picture underneath the point of the field rather than a
+          nicety: a mistyped URL is invisible on this screen and obvious on the public one, and
+          the person who finds out is a visitor.
+        */}
+        <Field
+          label="Cover image"
+          hint="A link to an image somewhere you host. Shown on the event's page and in listings."
+        >
+          <input
+            className={inputClass}
+            type="url"
+            inputMode="url"
+            value={form.coverImageUrl}
+            placeholder="https://…"
+            maxLength={2048}
+            onChange={(change) => setForm({ ...form, coverImageUrl: change.target.value })}
+          />
+        </Field>
+        {clearing ? (
+          <p className="border-2 border-ink bg-paper-sunk px-4 py-3 text-body text-ink">
+            A cover can be replaced but not yet removed — paste another link. Clearing the field
+            leaves the current one in place.
+          </p>
+        ) : (
+          form.coverImageUrl !== '' && (
+            <div className="space-y-2">
+              <CoverImage src={form.coverImageUrl} className="max-w-96" eager />
+              <p className="text-body text-ink-soft">
+                Nothing appears here if the link does not resolve to an image — which is what a
+                visitor would see too.
+              </p>
+            </div>
+          )
+        )}
         <label className="flex items-start gap-3 text-body">
           <input
             type="checkbox"

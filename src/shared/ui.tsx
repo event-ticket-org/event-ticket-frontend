@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { Money } from '~/api/types'
 import { ApiError, OfflineError } from '~/api/errors'
 import { formatInZone, formatMoney, zoneLabel } from './format'
@@ -202,6 +202,50 @@ export function Card({ className, children }: { className?: string; children: Re
     <div className={cx('border-2 border-ink bg-paper p-6 shadow-raised', className)}>
       {children}
     </div>
+  )
+}
+
+/**
+ * An Event's cover - somebody else's file on somebody else's server, and handled like it.
+ *
+ * Renders nothing at all when there is no URL or when the URL fails to load. Not a placeholder,
+ * which is a promise of content that is not coming; not a broken-image icon with the title read
+ * out beside it. A rotted link, a host that blocks hotlinking and an organizer who pasted a page
+ * instead of an image are the ordinary cases here rather than the edge ones.
+ *
+ * `alt=""` because the contract carries no alt text: the only string available is the title,
+ * which is already beside the picture, and repeating it makes a screen reader say everything
+ * twice. `no-referrer` because the host is a third party we did not choose and does not need to
+ * be told which of our pages somebody is reading.
+ */
+export function CoverImage({
+  src,
+  className,
+  eager = false,
+}: {
+  src?: string | null
+  className?: string
+  /** For the one cover that is already in the viewport. Deferring that one only makes it late. */
+  eager?: boolean
+}) {
+  const [failed, setFailed] = useState(false)
+  // A new URL deserves its own attempt - which is the whole point of the manager's live
+  // preview, where the previous value failing is exactly why somebody is typing another.
+  useEffect(() => setFailed(false), [src])
+
+  if (!src || failed) {
+    return null
+  }
+  return (
+    <img
+      src={src}
+      alt=""
+      loading={eager ? 'eager' : 'lazy'}
+      decoding="async"
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+      className={cx('aspect-[16/9] w-full border-2 border-ink bg-paper object-cover', className)}
+    />
   )
 }
 
