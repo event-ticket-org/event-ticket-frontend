@@ -30,6 +30,20 @@ export function useMe() {
   })
 }
 
+/**
+ * The caller's Membership in the Organization the token names, or undefined when there is none.
+ *
+ * Matched on the active id rather than taken as the first: a person may belong to several
+ * Organizations, and "which one am I in" and "what may I do here" have to agree, or a screen
+ * offers a Manager's controls to somebody who is Gate Staff in the tenant they are actually in.
+ */
+export function useActiveMembership() {
+  const { data: me, isLoading } = useMe()
+  const { organizationId } = useSessionState()
+  const membership = me?.memberships.find((m) => m.organizationId === organizationId)
+  return { membership, isLoading, canManageEvents: membership?.role !== 'GATE_STAFF' }
+}
+
 export function useRegister() {
   return useMutation({
     mutationFn: (input: { email: string; password: string; displayName: string }) =>
