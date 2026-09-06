@@ -127,12 +127,15 @@ them; replacing them with prose of our own makes them worse and lets the two dri
 — the backend would be right to reject the losers, and the user would be signed out by their own
 application. `session.refreshOnce` is what prevents it and `client.test.ts` proves it.
 
-**A mutation that must not wait is `networkMode: 'always'`.** TanStack's default is `online`:
-with the browser reporting no connection it does not fail a mutation, it *pauses* it — `isPending`
-stays true, the request is never sent, and it runs when the network comes back. The scanner sat on
-"Checking…" while an operator waited, and then admitted somebody minutes later — exactly the
-optimistic admission requirements/007 criterion 11 forbids. Anything a person is standing there
-waiting for attempts and fails instead.
+**Mutations are `networkMode: 'always'`, set once in `app/query-client.ts` and pinned by a test.**
+TanStack's default is `online`, and with the browser reporting no connection it does not fail a
+mutation — it *pauses* it. `isPending` stays true, the request is never sent, and it runs when the
+network comes back. This application has no offline mode to make that useful: every mutation is a
+person pressing a button and waiting, so a paused one is a button that says `Working…` until the
+signal returns and then acts at a moment nobody chose. It admitted somebody at a door minutes
+late; it would hold seats on a ten-minute clock the buyer never saw; and it makes sign-out skip
+its `onSettled`, so the one thing it must always do — clear this browser — is the one thing it
+does not. Queries keep the default: a paused read is a spinner, a paused write is an action.
 
 **Ask the server what a person may do, not the token.** `/me` lists live Memberships; a token
 says which Organization is active. A removed member holds a valid token for up to fifteen

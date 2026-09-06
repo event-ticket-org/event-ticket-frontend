@@ -35,13 +35,12 @@ const TIMED_OUT =
  * would put it in the cache, in the devtools and in anything that serialises either. The code
  * travels in the request body and nowhere else (`nfr.md`).
  *
- * **`networkMode: 'always'`**, which is the whole of requirements/007 criterion 11 in one
- * option. TanStack's default is `online`: with the browser reporting no connection it does not
- * fail a mutation, it **pauses** it - `isPending` stays true, the request is never sent, and it
- * runs when the network comes back. At a door that is the worst available behaviour, and it was
- * watched happening: the scanner sat on "Checking…" while an operator waited, and then admitted
- * somebody minutes later, long after they had walked away. Attempting and failing is what lets
- * the scanner say so.
+ * **This depends on the client's `networkMode: 'always'`** (`app/query-client.ts`, pinned by a
+ * test). TanStack's default pauses a mutation rather than failing it when the browser reports no
+ * connection, and at a door that is the worst available behaviour: the scanner was watched
+ * sitting on "Checking…" while an operator waited, then admitting somebody minutes later, long
+ * after they had walked away. Attempting and failing is what lets the scanner say so, and it is
+ * the whole of requirements/007 criterion 11.
  *
  * **No retry.** TanStack does not retry mutations by default and this must never start: every
  * attempt is recorded (criterion 6), and a silent retry of a request that actually succeeded
@@ -62,7 +61,6 @@ export function useScan(eventId: string) {
           { signal: AbortSignal.timeout(SCAN_TIMEOUT_MS) },
         ),
       ),
-    networkMode: 'always',
     retry: false,
   })
 }
