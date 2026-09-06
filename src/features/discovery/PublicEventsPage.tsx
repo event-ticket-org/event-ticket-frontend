@@ -139,7 +139,11 @@ export function PublicEventsPage() {
               >
                 {/* Flush to the card's inner edge, so the card's own border is the only one
                     around it and a card without a cover is not a card with a gap. */}
-                <CoverImage src={event.coverImageUrl} className="border-0 border-b-2" />
+                <CoverImage
+                  src={event.coverImageUrl}
+                  alt={event.coverImageAlt}
+                  className="border-0 border-b-2"
+                />
                 <div className="p-6">
                   <h2 className="text-heading">{event.title}</h2>
                   <p className="mt-1 text-body text-ink-soft">

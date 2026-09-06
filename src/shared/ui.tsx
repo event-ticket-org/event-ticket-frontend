@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import type { Money } from '~/api/types'
-import { ApiError, OfflineError } from '~/api/errors'
+import { ApiError, OfflineError, ReadableError } from '~/api/errors'
 import { formatInZone, formatMoney, zoneLabel } from './format'
 
 /**
@@ -38,8 +38,11 @@ export function Problem({ error }: { error: unknown }) {
   if (!error) {
     return null
   }
+  // Three kinds of error carry a message somebody wrote on purpose. Everything else is a
+  // failure nobody anticipated, and a stack trace is not something to put in front of a
+  // person - so it gets the one sentence that is true of all of them.
   const message =
-    error instanceof ApiError || error instanceof OfflineError
+    error instanceof ApiError || error instanceof OfflineError || error instanceof ReadableError
       ? error.message
       : 'Something went wrong. Please try again.'
 
@@ -213,17 +216,21 @@ export function Card({ className, children }: { className?: string; children: Re
  * out beside it. A rotted link, a host that blocks hotlinking and an organizer who pasted a page
  * instead of an image are the ordinary cases here rather than the edge ones.
  *
- * `alt=""` because the contract carries no alt text: the only string available is the title,
- * which is already beside the picture, and repeating it makes a screen reader say everything
- * twice. `no-referrer` because the host is a third party we did not choose and does not need to
- * be told which of our pages somebody is reading.
+ * The alt text is the organizer's, and an empty one is an answer rather than an omission: a
+ * cover nobody described is marked decorative, because the only other string available is the
+ * title - which is already beside the picture, and repeating it makes a screen reader say
+ * everything twice. `no-referrer` because a store put behind a CDN we did not choose does not
+ * need to be told which of our pages somebody is reading.
  */
 export function CoverImage({
   src,
+  alt,
   className,
   eager = false,
 }: {
   src?: string | null
+  /** What the picture shows. Absent means nobody described it, not that nobody should hear it. */
+  alt?: string | null
   className?: string
   /** For the one cover that is already in the viewport. Deferring that one only makes it late. */
   eager?: boolean
@@ -239,7 +246,7 @@ export function CoverImage({
   return (
     <img
       src={src}
-      alt=""
+      alt={alt ?? ''}
       loading={eager ? 'eager' : 'lazy'}
       decoding="async"
       referrerPolicy="no-referrer"
