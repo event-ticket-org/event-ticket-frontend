@@ -490,16 +490,29 @@ One component, rendered twice. `nfr.md` puts 2,000 seats on an Event, which sets
 **SVG, one `<g transform>` for pan and zoom, no per-seat React state, no per-seat event handler.**
 Delegate from the root and resolve the seat by id.
 
+**Availability and Pricing Tier are two dimensions on one glyph.** requirements/004 criterion 2
+asks for both at once — each seat shown as available, unavailable or held, *coloured by Pricing
+Tier, with the tier's price visible*. So the tier scale carries an available seat, and the states
+that are not available override it, because a seat you cannot buy has no price band worth reading.
+
+An earlier version of this document painted available seats `{colors.go}`. That was wrong against
+the requirement and worse for the buyer: green everywhere hides the price bands, which is most of
+what somebody is choosing between.
+
 Five states, each with a second non-colour signal, because a seat is roughly 8px at full-map zoom
 and hue alone excludes colour-blind buyers at exactly the moment money is involved:
 
 | State | Fill | Border | Second signal |
 |---|---|---|---|
-| available | `{colors.go}` | 2px `{colors.ink}` | — |
+| available | its `{colors.tier-N}` | 2px `{colors.ink}` | legend names the tier and its price |
 | selected | `{colors.info}` | 3px `{colors.ink}` | 1.25× scale |
 | held by another | `{colors.hold}` | 2px `{colors.ink}` | diagonal hatch |
 | sold | `{colors.paper-sunk}` | 2px `{colors.ink}` | diagonal strike |
 | not for sale | none | 1px dashed `{colors.ink-soft}` | — |
+
+The hatch and the strike are SVG `<pattern>` fills declared once in `<defs>`, not extra shapes per
+seat. At two thousand seats a second element each is four thousand nodes to build and paint for a
+texture; one paint reference costs nothing.
 
 Map elements (`STAGE`, `ENTRANCE`, `AISLE`, `BAR`, `LABEL`) are `{colors.paper-sunk}` rectangles
 with `{border.default}` and a `{type.label}` caption. They are never ticketed and must never look

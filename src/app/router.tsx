@@ -13,8 +13,14 @@ import { VenuePage } from '~/features/venues/VenuePage'
 import { VenuesPage } from '~/features/venues/VenuesPage'
 import { EventPage } from '~/features/events/EventPage'
 import { EventsPage } from '~/features/events/EventsPage'
+import { PublicEventPage } from '~/features/discovery/PublicEventPage'
+import { PublicEventsPage } from '~/features/discovery/PublicEventsPage'
+import { CheckoutPage } from '~/features/checkout/CheckoutPage'
+import { OrderPage } from '~/features/checkout/OrderPage'
+import { OrdersPage } from '~/features/tickets/OrdersPage'
+import { TicketsPage } from '~/features/tickets/TicketsPage'
 import { RegisterPage, SignInPage, VerifyEmailPage } from '~/features/auth/AuthPages'
-import { HomePage, NotFoundPage, PlaceholderPage } from './pages'
+import { NotFoundPage, PlaceholderPage } from './pages'
 
 /**
  * Routes are grouped by the shell they belong to rather than by feature, because the
@@ -28,16 +34,23 @@ export const router = createBrowserRouter([
   {
     element: <PublicLayout />,
     children: [
-      { path: '/', element: <HomePage /> },
+      { path: '/', element: <PublicEventsPage /> },
       { path: '/sign-in', element: <SignInPage /> },
       { path: '/register', element: <RegisterPage /> },
       { path: '/verify-email', element: <VerifyEmailPage /> },
-      { path: '/events/:eventId', element: <PlaceholderPage what="The public event page and seat picker" slice="3" /> },
+      { path: '/events/:eventId', element: <PublicEventPage /> },
       {
         element: <RequireSignedIn />,
         children: [
-          { path: '/orders', element: <PlaceholderPage what="Your orders and tickets" slice="3" /> },
-          { path: '/orders/:orderId', element: <PlaceholderPage what="An order's tickets, with their QR codes" slice="3" /> },
+          { path: '/events/:eventId/checkout', element: <CheckoutPage /> },
+        ],
+      },
+      {
+        element: <RequireSignedIn />,
+        children: [
+          { path: '/orders', element: <OrdersPage /> },
+          { path: '/orders/:orderId', element: <OrderPage /> },
+          { path: '/orders/:orderId/tickets', element: <TicketsPage /> },
         ],
       },
     ],
