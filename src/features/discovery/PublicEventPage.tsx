@@ -1,6 +1,7 @@
 import { Link, useLocation, useParams } from 'react-router'
 import type { EventSeat, Money, PricingTier } from '~/api/types'
 import { useMe, useSessionState } from '~/features/auth/session-hooks'
+import { formatMoney, timeUntil } from '~/shared/format'
 import { Card, CoverImage, MoneyTotal, Problem, StatusChip, TimeWithZone } from '~/shared/ui'
 import { SeatPicker } from './SeatPicker'
 import { usePublicEvent, useEventSeatMap } from './public-hooks'
@@ -23,34 +24,81 @@ export function PublicEventPage() {
   const seats = seatMap.data?.seats ?? []
   const chosen = seats.filter((seat) => selection.selected.includes(seat.id))
   const onSale = details.status === 'PUBLISHED'
+  // How many seats are left comes from the contract now rather than from counting the map,
+  // so the answer is here before the map has loaded - and it is the same number the listing
+  // showed, from the same query, so the two pages cannot disagree.
+  const soldOut = details.seatsAvailable === 0
+  const until = timeUntil(details.startsAt)
 
   return (
     <div className="space-y-8">
       <div>
-        {/* Above the title, and eager rather than lazy - it is the first thing in the
-            viewport, so deferring it only guarantees it arrives late. */}
-        <CoverImage
-          src={details.coverImageUrl}
-          alt={details.coverImageAlt}
-          className="mb-6"
-          eager
-        />
-        <div className="flex flex-wrap items-baseline justify-between gap-3">
+        {/*
+          Back to the listing, and first, because arriving here from a shared link is the
+          common case and there is otherwise nothing on the page that says this product has
+          more than one event in it.
+        */}
+        <Link to="/" className="text-body underline underline-offset-4">
+          ← All events
+        </Link>
+
+        {/*
+          The title leads and the picture follows it.
+          
+          It used to be the other way round, which put a 360px image between the header and
+          the name of the thing somebody had just tapped - on a phone the title was below the
+          fold, so the first screen of an event page showed a picture and no answer to "what
+          is this". The cover is still the hero shape here, unlike on a listing card: this is
+          the one page where the picture is the subject rather than one line of evidence.
+        */}
+        <div className="mt-4 flex flex-wrap items-baseline justify-between gap-3">
           <h1 className="text-title">{details.title}</h1>
           {!onSale && <StatusChip status={details.status ?? 'DRAFT'} />}
+          {onSale && soldOut && (
+            <span className="border-2 border-ink bg-paper-sunk px-2 py-0.5 text-label uppercase">
+              Sold out
+            </span>
+          )}
         </div>
         <p className="mt-2 text-body text-ink-soft">
           {details.venueName}, {details.city} · {details.organizationName}
         </p>
-        <div className="mt-3 space-y-1">
-          <TimeWithZone iso={details.startsAt} timeZone={details.timezone} />
-          {details.doorsOpenAt && (
-            <p className="text-body text-ink-soft">
-              Doors open{' '}
-              <TimeWithZone iso={details.doorsOpenAt} timeZone={details.timezone} />
+
+        {/* Eager rather than lazy - it is in the first screen, so deferring it only
+            guarantees it arrives late. */}
+        <CoverImage
+          src={details.coverImageUrl}
+          alt={details.coverImageAlt}
+          className="mt-6"
+          eager
+        />
+
+        <div className="mt-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <div className="space-y-1">
+            <p>
+              <TimeWithZone iso={details.startsAt} timeZone={details.timezone} />
+              {until && <span className="ml-2 text-body text-ink-soft">{until}</span>}
+            </p>
+            {details.doorsOpenAt && (
+              <p className="text-body text-ink-soft">
+                Doors open{' '}
+                <TimeWithZone iso={details.doorsOpenAt} timeZone={details.timezone} />
+              </p>
+            )}
+          </div>
+          {/* What it costs, before the seat map rather than only inside its legend: a buyer
+              deciding whether to read on is asking the price, and a legend is a key to a
+              picture they have not looked at yet. */}
+          {details.priceFrom && (
+            <p className="text-body">
+              from{' '}
+              <span className="font-numeric text-numeric-lg">
+                {formatMoney(details.priceFrom)}
+              </span>
             </p>
           )}
         </div>
+
         {details.description && (
           <p className="mt-4 max-w-[68ch] whitespace-pre-line text-body">{details.description}</p>
         )}

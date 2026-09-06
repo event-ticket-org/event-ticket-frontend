@@ -227,6 +227,7 @@ export function CoverImage({
   alt,
   className,
   eager = false,
+  shape = 'hero',
 }: {
   src?: string | null
   /** What the picture shows. Absent means nobody described it, not that nobody should hear it. */
@@ -234,6 +235,16 @@ export function CoverImage({
   className?: string
   /** For the one cover that is already in the viewport. Deferring that one only makes it late. */
   eager?: boolean
+  /**
+   * `hero` is 16:9, for the event's own page where the picture is the subject. `band` is a
+   * fixed 140px strip, for a listing card where it is one line of evidence among five.
+   *
+   * DESIGN.md carries the reasoning. The short version: 16:9 across a 640px column is a 360px
+   * image, which made a card with a cover more than three times the height of one without, and
+   * a list whose rows vary that much cannot be scanned. The 16:9 rule was written for a grid,
+   * and there is no grid in the public shell.
+   */
+  shape?: 'hero' | 'band'
 }) {
   const [failed, setFailed] = useState(false)
   // A new URL deserves its own attempt - which is the whole point of the manager's live
@@ -251,7 +262,11 @@ export function CoverImage({
       decoding="async"
       referrerPolicy="no-referrer"
       onError={() => setFailed(true)}
-      className={cx('aspect-[16/9] w-full border-2 border-ink bg-paper object-cover', className)}
+      className={cx(
+        'w-full border-2 border-ink bg-paper object-cover',
+        shape === 'hero' ? 'aspect-[16/9]' : 'h-35',
+        className,
+      )}
     />
   )
 }

@@ -8,7 +8,12 @@ import type { EventSeatMap, PublicEvent, PublicEventPage } from '~/api/types'
  * some other tab cannot turn a public page into a 401 - somebody browsing events has no
  * account yet, and the ones who do should not see a different site.
  */
-export type PublicEventFilters = { city?: string; startsAfter?: string; startsBefore?: string }
+export type PublicEventFilters = {
+  q?: string
+  city?: string
+  startsAfter?: string
+  startsBefore?: string
+}
 
 /**
  * A typed date, as the instant the filter means.
@@ -39,14 +44,18 @@ export function endOfDay(date: string): string | undefined {
  */
 export function usePublicEvents(filters: PublicEventFilters) {
   const query =
+    (filters.q ? `&q=${encodeURIComponent(filters.q)}` : '') +
     (filters.city ? `&city=${encodeURIComponent(filters.city)}` : '') +
     (filters.startsAfter ? `&startsAfter=${encodeURIComponent(filters.startsAfter)}` : '') +
     (filters.startsBefore ? `&startsBefore=${encodeURIComponent(filters.startsBefore)}` : '')
 
   return useInfiniteQuery({
+    // Every filter is in the key, so a changed one is a different list rather than the old
+    // list with new pages appended to it.
     queryKey: [
       'public',
       'events',
+      filters.q ?? '',
       filters.city ?? '',
       filters.startsAfter ?? '',
       filters.startsBefore ?? '',
