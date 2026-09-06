@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { CancelEventPanel, CancellationProgress } from '~/features/refunds/CancelEvent'
+import { CoverField } from './CoverField'
 import { ApiError } from '~/api/errors'
 import type { Event, Money, PricingTierInput, Venue } from '~/api/types'
 import { formatMoney } from '~/shared/format'
 import {
   Button,
   Card,
-  CoverImage,
   Field,
   Problem,
   StatusChip,
@@ -96,21 +96,13 @@ function Details({ eventId, event }: { eventId: string; event: Event }) {
   const [form, setForm] = useState({
     title: event.title,
     description: event.description ?? '',
-    coverImageUrl: event.coverImageUrl ?? '',
+    coverImageAlt: event.coverImageAlt ?? '',
     listed: event.listed ?? true,
   })
-  /**
-   * Emptying the field is not a change, because there is nothing to send for it: `EventPatch`
-   * types `coverImageUrl` as a plain `uri`, so absent means "unchanged" and there is no value
-   * that means "remove". Sending `""` would be an invalid URI; sending nothing would leave the
-   * cover in place while the form claimed it had saved. Saying so is the only honest option
-   * until the contract has a way to express it.
-   */
-  const clearing = form.coverImageUrl === '' && (event.coverImageUrl ?? '') !== ''
   const changed =
     form.title !== event.title ||
     form.description !== (event.description ?? '') ||
-    (!clearing && form.coverImageUrl !== (event.coverImageUrl ?? '')) ||
+    form.coverImageAlt !== (event.coverImageAlt ?? '') ||
     form.listed !== (event.listed ?? true)
 
   return (
@@ -125,7 +117,9 @@ function Details({ eventId, event }: { eventId: string; event: Event }) {
           update.mutate({
             title: form.title,
             description: form.description,
-            ...(form.coverImageUrl === '' ? {} : { coverImageUrl: form.coverImageUrl }),
+            // Only when there is a picture to describe: the server refuses alt text for an
+            // absent cover, and so does the database.
+            ...(event.coverImageUrl ? { coverImageAlt: form.coverImageAlt } : {}),
             listed: form.listed,
           })
         }}
@@ -150,40 +144,24 @@ function Details({ eventId, event }: { eventId: string; event: Event }) {
           />
         </Field>
         {/*
-          A link rather than an upload, because the contract has no upload - see DESIGN.md's
-          Known Gaps. Which makes the picture underneath the point of the field rather than a
-          nicety: a mistyped URL is invisible on this screen and obvious on the public one, and
-          the person who finds out is a visitor.
+          Outside this form on purpose. Uploading and removing are their own endpoints and take
+          effect at once; what the picture *shows* is text like any other and saves with the
+          title beside it.
         */}
-        <Field
-          label="Cover image"
-          hint="A link to an image somewhere you host. Shown on the event's page and in listings."
-        >
-          <input
-            className={inputClass}
-            type="url"
-            inputMode="url"
-            value={form.coverImageUrl}
-            placeholder="https://…"
-            maxLength={2048}
-            onChange={(change) => setForm({ ...form, coverImageUrl: change.target.value })}
-          />
-        </Field>
-        {clearing ? (
-          <p className="border-2 border-ink bg-paper-sunk px-4 py-3 text-body text-ink">
-            A cover can be replaced but not yet removed — paste another link. Clearing the field
-            leaves the current one in place.
-          </p>
-        ) : (
-          form.coverImageUrl !== '' && (
-            <div className="space-y-2">
-              <CoverImage src={form.coverImageUrl} className="max-w-96" eager />
-              <p className="text-body text-ink-soft">
-                Nothing appears here if the link does not resolve to an image — which is what a
-                visitor would see too.
-              </p>
-            </div>
-          )
+        <CoverField event={event} />
+        {event.coverImageUrl && (
+          <Field
+            label="What the cover shows"
+            hint="For people who cannot see it. Describe the picture, not the event — its title is already beside it."
+          >
+            <input
+              className={inputClass}
+              value={form.coverImageAlt}
+              maxLength={200}
+              placeholder="A crowd lit from behind, arms raised"
+              onChange={(change) => setForm({ ...form, coverImageAlt: change.target.value })}
+            />
+          </Field>
         )}
         <label className="flex items-start gap-3 text-body">
           <input

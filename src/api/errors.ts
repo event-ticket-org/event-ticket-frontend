@@ -35,6 +35,22 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * A failure the client detected, carrying a message written to be read.
+ *
+ * `Problem` shows an `ApiError`'s message because the backend writes messages for the person
+ * who hit them, and replaces everything else with one generic sentence - which is right, and
+ * is what stops a `TypeError` reaching a user. This is the third case: something the client
+ * knew before the server did, or knows better. A file too large to be worth sending, or a
+ * storage host that answered in XML, are both better described here than anywhere else.
+ */
+export class ReadableError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'ReadableError'
+  }
+}
+
 /** Network failures reach the user as something they can act on, not as "TypeError". */
 export class OfflineError extends Error {
   constructor() {

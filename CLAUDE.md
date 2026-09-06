@@ -137,8 +137,22 @@ Two things the API deliberately will not do for you locally, both of them the sy
 `src/api/client.ts` is written by hand while the types are generated, because the three things
 that matter are ours: the bearer token, the single-flight refresh, and the error envelope.
 
+**A spread hides contract drift from `tsc`.** The generated types are the safety net - a
+contract change the code has not caught up with is meant to fail the build. Excess-property
+checking is what catches a field the contract has dropped, and it only applies to object
+*literals*: `mutate({ ...(x ? { goneField: v } : {}) })` type-checks cleanly while sending a
+field the server will refuse. Write conditional fields as a literal with `undefined` where you
+can, and treat a green `tsc` after vendoring a contract as evidence, not proof.
+
 **Branch on `error.code`, never on the status.** `SEATS_UNAVAILABLE` and `ORDER_ALREADY_PAID`
 are both 409 and mean entirely different things to a buyer.
+
+**Cover images do not go through this client.** A cover is posted straight to object storage
+from the browser (ADR-0006): a different origin, no bearer, and a multipart body - every reason
+`api.ts` exists is a reason not to use it there. Sending our access token to a storage host
+would hand a credential to a service with no business holding one. `cover-hooks.ts` uses plain
+`fetch`, and the three steps are one mutation because a caller who did two of them has produced
+an orphan rather than a cover.
 
 **Show `error.message`.** The backend writes messages meant to be read by the person who hit
 them; replacing them with prose of our own makes them worse and lets the two drift.

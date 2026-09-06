@@ -29,7 +29,12 @@ export function PublicEventPage() {
       <div>
         {/* Above the title, and eager rather than lazy - it is the first thing in the
             viewport, so deferring it only guarantees it arrives late. */}
-        <CoverImage src={details.coverImageUrl} className="mb-6" eager />
+        <CoverImage
+          src={details.coverImageUrl}
+          alt={details.coverImageAlt}
+          className="mb-6"
+          eager
+        />
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <h1 className="text-title">{details.title}</h1>
           {!onSale && <StatusChip status={details.status ?? 'DRAFT'} />}
