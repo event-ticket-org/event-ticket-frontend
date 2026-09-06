@@ -113,6 +113,14 @@ everybody in the same Segmented control as the zoom, because a sighted person hu
 seats together in row F wants it too, and a version only screen-reader users see is a version
 that quietly rots.
 
+**A table that becomes cards is two trees, not one clever one.** DESIGN.md turns tables into
+stacked cards below `md`. The CSS tricks that keep one DOM - `display: block` on rows, labels
+from `::before` - produce generated text screen readers treat inconsistently, and a viewport
+hook adds a mechanism this codebase does not otherwise have. Render both and hide one:
+`hidden md:block` and `md:hidden` are `display: none`, so the copy that is not showing is out
+of the accessibility tree rather than read twice. Share the stateful control between them, as
+`AdminPage` shares `Decision` - the alternative is one two-step flow written out twice.
+
 **Measure the painted extent, not the border box.** `getBoundingClientRect` excludes
 `box-shadow`, and in this system every raised control paints 4–6px past its box. Two elements
 can report a clean gap and still overlap on screen.
