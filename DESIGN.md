@@ -1008,6 +1008,13 @@ shadow that is not a token, that is a design decision — bring it here first.
 
 Honest list of what this document does not yet decide.
 
+- **A buyer cannot choose how to pay.** The contract has no way to ask which payment providers
+  a deployment is configured with, so the client sends one name decided at build time. In this
+  market a buyer should be choosing between a bank transfer, a wallet and a card — and the
+  screen that would offer that choice cannot be designed until the contract can answer the
+  question. It became visible the moment a second provider existed: `'FAKE'` was written into
+  two click handlers, so Stripe was reachable by the API and not by the product.
+
 - **The tier scale repeats after six.** A Venue with seven Pricing Tiers gets two the same
   colour. The legend still names them and selecting a tier still highlights it, so nothing is
   ambiguous — but the map stops being readable at a glance, and a seventh tier is a signal the
