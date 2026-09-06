@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { SeatMapSeat } from '~/api/types'
-import { directionFor, rowNameOf, rowsOf, step } from './seat-navigation'
+import { seatsWithin } from './geometry'
+import { directionFor, rangeRect, rowNameOf, rowsOf, step } from './seat-navigation'
 
 const seat = (label: string, x: number, y: number): SeatMapSeat => ({
   label,
@@ -120,6 +121,45 @@ describe('the keys it claims', () => {
     expect(directionFor('PageDown')).toBeUndefined()
     expect(directionFor('PageUp')).toBeUndefined()
     expect(directionFor('Tab')).toBeUndefined()
+  })
+})
+
+describe('extending a selection', () => {
+  const inside = (anchor: string, focus: string) => {
+    const rect = rangeRect(seats, at(anchor), at(focus))!
+    return seatsWithin([...seats], rect).map((seat) => seat.label)
+  }
+
+  it('takes the run along a row, and nothing in the rows either side', () => {
+    expect(inside('A2', 'A4')).toEqual(['A2', 'A3', 'A4'])
+  })
+
+  /** Backwards is the same box. An anchor is where a selection started, not its smaller end. */
+  it('does not care which end it started from', () => {
+    expect(inside('A4', 'A2')).toEqual(inside('A2', 'A4'))
+  })
+
+  it('takes the block between two seats in different rows', () => {
+    expect(inside('A2', 'B3')).toEqual(['A2', 'A3', 'B2', 'B3'])
+  })
+
+  it('is one seat when it has not been extended anywhere', () => {
+    expect(inside('B2', 'B2')).toEqual(['B2'])
+  })
+
+  /**
+   * The reason the box is padded. Seats are generated on an exact line and then dragged, so a
+   * row-mate a quarter pitch off it is ordinary - and a selection that visibly contains a seat
+   * has to contain it.
+   */
+  it('keeps a nudged seat that is visibly inside the box', () => {
+    const nudged = [seat('A1', 0, 0), seat('A2', 1, 0.25), seat('A3', 2, 0)]
+    const rect = rangeRect(nudged, 0, 2)!
+    expect(seatsWithin(nudged, rect).map((s) => s.label)).toEqual(['A1', 'A2', 'A3'])
+  })
+
+  it('survives being asked about a seat that is not in the map', () => {
+    expect(rangeRect(seats, 0, 99)).toBeUndefined()
   })
 })
 

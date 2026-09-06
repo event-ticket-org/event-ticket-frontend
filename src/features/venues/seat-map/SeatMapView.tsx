@@ -72,6 +72,19 @@ export type SeatMapViewProps<S extends SeatMapSeat> = {
     /** False for a seat nobody can choose. It stays reachable, and says why in its label. */
     enabled?: (seat: S, index: number) => boolean
     onActivate: (seat: S, index: number, event: React.KeyboardEvent) => void
+    /**
+     * Extend a selection from where it started to where focus has just moved.
+     *
+     * Two seat indices, and no opinion about what lies between them - this component knows
+     * where seats are, and the caller knows what selecting means. `rangeRect` is what turns
+     * the pair into the box a pointer's marquee would have drawn around them.
+     *
+     * Supplied only by a caller that can select more than one seat at a time. Without it,
+     * Shift and an arrow is an arrow.
+     */
+    onExtend?: (anchor: number, focus: number) => void
+    /** The platform's select-all, for a caller that has something to do with all of them. */
+    onSelectAll?: () => void
     /** Told where focus went, so a zoomed caller can bring it into view. */
     onFocus?: (seat: S, index: number) => void
     /**
@@ -129,6 +142,16 @@ export function SeatMapView<S extends SeatMapSeat>({
   // Clamped rather than reset: a map that shrinks under a held focus should keep it somewhere
   // real, and a caller re-rendering with new availability must not throw the position away.
   const roving = Math.min(focused || firstChoosable, Math.max(map.seats.length - 1, 0))
+
+  /**
+   * Where the current selection started, which is what Shift extends *from*.
+   *
+   * A ref: it changes with every unshifted move and nothing renders from it, and a selection
+   * whose anchor lagged a render behind would extend from the seat before the one somebody
+   * chose. Null until anybody has chosen anything, at which point the focused seat is as good
+   * a start as there is.
+   */
+  const anchor = useRef<number | null>(null)
 
   const moveTo = (index: number) => {
     if (index === roving) {
@@ -270,7 +293,18 @@ export function SeatMapView<S extends SeatMapSeat>({
                   const seat = map.seats[from]
                   if (seat && (keyboard.enabled?.(seat, from) ?? true)) {
                     event.preventDefault()
+                    // Choosing a seat is where a selection starts, so it is where the next
+                    // Shift will extend from.
+                    anchor.current = from
                     keyboard.onActivate(seat, from, event)
+                  }
+                  return
+                }
+
+                if ((event.metaKey || event.ctrlKey) && (event.key === 'a' || event.key === 'A')) {
+                  if (keyboard.onSelectAll) {
+                    event.preventDefault()
+                    keyboard.onSelectAll()
                   }
                   return
                 }
@@ -283,7 +317,19 @@ export function SeatMapView<S extends SeatMapSeat>({
                 // Only once the map has claimed the key. An arrow the map ignores is an arrow
                 // that still scrolls the page, which is what somebody expects it to do.
                 event.preventDefault()
-                moveTo(step(map.seats, rows, from, direction))
+                const next = step(map.seats, rows, from, direction)
+
+                // Shift extends; a bare arrow moves and takes the anchor with it. The same two
+                // rules every listbox has, which is the point - this is not a gesture worth
+                // inventing a vocabulary for.
+                if (event.shiftKey && keyboard.onExtend) {
+                  anchor.current ??= from
+                  moveTo(next)
+                  keyboard.onExtend(anchor.current, next)
+                  return
+                }
+                anchor.current = next
+                moveTo(next)
               }
             : undefined
         }

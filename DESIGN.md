@@ -623,7 +623,24 @@ Arrow ↑ ↓       the nearest seat across, in the row above or below
 Home / End      the ends of this row
 Ctrl+Home/End   the first and last seat in the map
 Enter / Space   choose or unchoose
+Shift + any of  extend the selection from where it started to here
+⌘ / Ctrl + A    every seat
 ```
+
+**Extending selects the rectangle, not the run.** `Shift` and an arrow is the gesture every
+listbox has, and this is the one place its usual meaning would be wrong: a range through the
+array is a range through the order the seats were *generated* in, which in a ragged map is a
+diagonal nobody drew. Two seats bound a box, and the box is what a pointer's marquee would have
+produced around them — so there is one selection gesture with two ways to perform it, and
+nothing downstream can tell which was used.
+
+The box is padded by a seat's radius. Without it a run along one row is a rectangle of zero
+height, and a row-mate nudged a quarter pitch off the line falls outside a selection it is
+visibly inside.
+
+A bare arrow takes the anchor with it; `Shift` extends from wherever the anchor was left. That
+is standard, and it is what makes "choose a seat, then extend from it" a thing somebody can do
+without being told.
 
 Up and down land on the seat **nearest in x**, not on the same position along the next row.
 Rows are not the same length — a balcony is narrower than the stalls — and counting along sends
@@ -857,7 +874,15 @@ that read `className` strings. The rest of this list is still a matter of judgem
   "elevate". No exclamation marks.
 - **No `{colors.ink-soft}` for anything that matters.** Grey secondary text is where important
   information goes to be ignored — prices, times and statuses are never grey.
-- **No icon-only buttons** outside the scanner. An icon with no label is a guess.
+- **No icon set at all, and no icon-only buttons.** This document once listed choosing one as
+  an open gap, on the assumption that the scanner's camera controls and the seat map editor's
+  tools would need icons. Nine slices later every one of those places uses a word — `FIT`, `−`,
+  `+`, `Add rows`, `Add landmark` — and the scanner's case turned out to be the strongest
+  argument against: a word read in the dark, one-handed, with a queue waiting, beats a glyph
+  somebody has to recognise. Picking a set no screen needs is inventing a dependency and a
+  second thing to keep consistent. If a control ever genuinely cannot be named, the constraint
+  is a stroke-only set at 2px to match the border weight — but an icon with no label is a
+  guess, and that has not changed.
 - **No dark mode toggle.** The scanner is dark because a door at night is dark. The other two
   shells are light. A theme switcher is a third design to maintain and nobody asked for it.
 - **No spinners, no progress bars, no toasts.** Pending state is a changed label; a result is a
@@ -958,9 +983,6 @@ Honest list of what this document does not yet decide.
   colour. The legend still names them and selecting a tier still highlights it, so nothing is
   ambiguous — but the map stops being readable at a glance, and a seventh tier is a signal the
   scale needs patterns rather than more hues.
-- **No icon set is chosen.** The components above avoid icons deliberately, but the scanner's camera
-  controls and the seat map editor's tools will need them. A stroke-only set at 2px to match the
-  border weight is the constraint; the specific set is undecided.
 - **No motion specification for seat map pan and zoom.** Momentum, bounds and zoom limits are
   unspecified and will be settled when the component is built.
 - **A cover is served at whatever size it was uploaded.** No derived sizes, no CDN, no
@@ -969,14 +991,9 @@ Honest list of what this document does not yet decide.
   somebody is paying for the bandwidth.
 - **No print styles.** A buyer printing a ticket gets the browser's default, which is not a decision
   anybody made.
-- **The seat map editor has no keyboard equivalent of the marquee.** Seats are chosen one at a
-  time with `Shift`+`Enter`, which is twenty-four presses for a row and two hundred for a block
-  — where a pointer draws one box. Selecting a row, a block or a tier in a single action is the
-  missing verb, and it is a selection vocabulary rather than a movement one, so it wants
-  designing rather than adding.
 - **No specification for the platform-admin screens.** They are internal, low-traffic, and will
   inherit the manager shell until they have enough surface to deserve their own rules.
-- **Only the auth slice has been built against this document.** The tokens, the primitives and
-  the three shells obey it; every screen from slice 2 onward is the first real test of whether
-  the component set above is sufficient. Expect to add components here, with their state sets,
-  as they are needed.
+- **Nothing here has been tested against a room-sized map.** `nfr.md` puts 2,000 seats on an
+  Event and the seat map is built for that number — one `<g>`, no per-seat state, delegated
+  events — but the largest map anything has actually been run against is a few dozen. The
+  design is a prediction until somebody generates two thousand seats and tries to select them.
