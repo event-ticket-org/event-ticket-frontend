@@ -13,14 +13,27 @@ import { SEAT_RADIUS, elementSize, viewBoxOf, type Bounds, type Rect } from './g
  * attribute, which keeps a full re-render to one pass over a flat array.
  */
 
-export type SeatMapViewProps = {
-  map: SeatMap
+/**
+ * Generic over the seat, because the two callers hold different ones: the editor edits
+ * `SeatMapSeat`, and the buyer's picker needs an `EventSeat` - which adds the id it checks
+ * out with and the availability it colours by. Without this the picker would get its own
+ * seats back typed as the editor's and have to look each one up again by index.
+ */
+export type SeatMapViewProps<S extends SeatMapSeat> = {
+  map: { seats: S[]; elements: SeatMap['elements'] }
   bounds: Bounds
   /** Tailwind classes for a seat's fill and stroke. */
-  seatClass: (seat: SeatMapSeat, index: number) => string
+  seatClass: (seat: S, index: number) => string
+  /**
+   * A paint reference for seats whose fill is a `<pattern>` rather than a colour - the hatch
+   * on a held seat, the strike on a sold one. Returning undefined leaves the class to it.
+   */
+  seatFill?: (seat: S, index: number) => string | undefined
+  /** Patterns and gradients this map's fills refer to. Declared once, not per seat. */
+  defs?: React.ReactNode
   labelledSeats?: boolean
   marquee?: Rect | null
-  onSeatPointerDown?: (seat: SeatMapSeat, index: number, event: React.PointerEvent) => void
+  onSeatPointerDown?: (seat: S, index: number, event: React.PointerEvent) => void
   /**
    * Supplied only by the editor. A landmark is never ticketed, so in the buyer's view it must
    * not look or behave like something to click - without this it stays inert, which is the
@@ -45,10 +58,12 @@ export type SeatMapViewProps = {
   ariaLabel: string
 }
 
-export function SeatMapView({
+export function SeatMapView<S extends SeatMapSeat>({
   map,
   bounds,
   seatClass,
+  seatFill,
+  defs,
   labelledSeats = false,
   marquee,
   onSeatPointerDown,
@@ -60,7 +75,7 @@ export function SeatMapView({
   onZoom,
   className,
   ariaLabel,
-}: SeatMapViewProps) {
+}: SeatMapViewProps<S>) {
   const svg = useRef<SVGSVGElement>(null)
 
   /**
@@ -147,6 +162,8 @@ export function SeatMapView({
       onPointerMove={(event) => onPointerMove?.(toMapPoint(event), event)}
       onPointerUp={(event) => onPointerUp?.(toMapPoint(event), event)}
     >
+      {defs && <defs>{defs}</defs>}
+
       {map.elements.map((element, index) => (
         <Element
           key={index}
@@ -167,6 +184,7 @@ export function SeatMapView({
           // Stroke width is in map units, so it thins as you zoom out and the map stays
           // legible instead of turning into a field of outlines.
           strokeWidth={0.08}
+          fill={seatFill?.(seat, index)}
           className={seatClass(seat, index)}
         />
       ))}
