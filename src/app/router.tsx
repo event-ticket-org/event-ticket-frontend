@@ -15,6 +15,8 @@ import { EventPage } from '~/features/events/EventPage'
 import { EventsPage } from '~/features/events/EventsPage'
 import { PublicEventPage } from '~/features/discovery/PublicEventPage'
 import { PublicEventsPage } from '~/features/discovery/PublicEventsPage'
+import { CheckoutPage } from '~/features/checkout/CheckoutPage'
+import { OrderPage } from '~/features/checkout/OrderPage'
 import { RegisterPage, SignInPage, VerifyEmailPage } from '~/features/auth/AuthPages'
 import { NotFoundPage, PlaceholderPage } from './pages'
 
@@ -35,12 +37,18 @@ export const router = createBrowserRouter([
       { path: '/register', element: <RegisterPage /> },
       { path: '/verify-email', element: <VerifyEmailPage /> },
       { path: '/events/:eventId', element: <PublicEventPage /> },
-      { path: '/events/:eventId/checkout', element: <PlaceholderPage what="Checkout, the hold clock and payment" slice="3" /> },
+      {
+        element: <RequireSignedIn />,
+        children: [
+          { path: '/events/:eventId/checkout', element: <CheckoutPage /> },
+        ],
+      },
       {
         element: <RequireSignedIn />,
         children: [
           { path: '/orders', element: <PlaceholderPage what="Your orders and tickets" slice="3" /> },
-          { path: '/orders/:orderId', element: <PlaceholderPage what="An order's tickets, with their QR codes" slice="3" /> },
+          { path: '/orders/:orderId', element: <OrderPage /> },
+          { path: '/orders/:orderId/tickets', element: <PlaceholderPage what="Your tickets, with their QR codes" slice="3" /> },
         ],
       },
     ],
