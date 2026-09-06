@@ -512,6 +512,46 @@ Everything else uses a plain confirm with the consequence list.
 
 The confirming button is `destructive` and is never the default focus.
 
+### CoverImage — public only
+
+An Event's cover is the one picture in this product, and it is somebody else's file on somebody
+else's server: a URL an organizer typed. Everything below follows from not being able to trust
+it.
+
+**A fixed 16:9 box, `object-fit: cover`, `border-2 border-ink`, radius 0.** A list of events
+whose images each set their own height reads as broken before anybody has looked at one of
+them. Cropping is the price of a grid, and it is the right price — an organizer who cares about
+the crop can crop the file.
+
+**A missing cover is not a hole, it is one less thing on the card.** No placeholder block, no
+grey rectangle, no camera glyph. A placeholder is a promise of content that is not coming, and
+a listing where half the cards carry a grey box looks broken in a way a listing of plain cards
+does not.
+
+**A URL that fails to load is a missing cover.** Not an alt string next to a broken-image icon —
+the component hides itself on `error`. This is the common case rather than the edge one: the
+link rots, the host blocks hotlinking, the organizer pasted a page instead of an image, and
+none of that is the visitor's problem to look at.
+
+**`alt=""`, deliberately.** The contract has no alt field, so the only text available is the
+title — which is already next to the image, and repeating it is the standard wrong answer that
+makes a screen reader say everything twice. Marking it decorative is the honest description of a
+picture nobody has described. Giving organizers a real alt field is a contract change and is in
+[Known Gaps](#known-gaps).
+
+**`referrerPolicy="no-referrer"` and `loading="lazy"`.** The host is a third party we did not
+choose: it does not need to be told which of our pages a visitor is reading, and it does not
+need to be contacted at all for a card nobody has scrolled to.
+
+**The image never carries information the text does not.** Same rule as
+[colour](#colour-is-never-the-only-signal), for the same reason — a cover that fails to load
+must cost a visitor nothing but a picture.
+
+**The manager's field is a URL input with the picture under it.** There is no upload in the
+contract, so the field takes a link; and a link is exactly the kind of input whose mistakes are
+invisible until somebody else sees the page, so the form shows what the URL actually resolves to
+while it is being typed.
+
 ### SeatMap — manager (editor), public (picker)
 
 One component, rendered twice. `nfr.md` puts 2,000 seats on an Event, which sets the budget:
@@ -908,6 +948,15 @@ Honest list of what this document does not yet decide.
   border weight is the constraint; the specific set is undecided.
 - **No motion specification for seat map pan and zoom.** Momentum, bounds and zoom limits are
   unspecified and will be settled when the component is built.
+- **A cover can be set and replaced but not removed.** `EventPatch` types `coverImageUrl` as a
+  plain `uri`, so absent means "unchanged" and nothing means "remove" — the manager's form says
+  so rather than pretending. Expressing it needs the contract to choose a convention for
+  clearing an optional field, which is a decision about every field of its kind rather than
+  about this one.
+- **An Event's cover has no alt text and no upload.** The contract carries a URL and nothing
+  else, so the picture is marked decorative (`alt=""`) and organizers must host the file
+  somewhere themselves. Both are contract changes rather than screens: a `coverImageAlt` field,
+  and an upload endpoint with the storage, signed URLs and content-type checking that implies.
 - **No print styles.** A buyer printing a ticket gets the browser's default, which is not a decision
   anybody made.
 - **The seat map editor has no keyboard equivalent of the marquee.** Seats are chosen one at a

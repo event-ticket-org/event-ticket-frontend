@@ -1,7 +1,7 @@
 import { Link, useLocation, useParams } from 'react-router'
 import type { EventSeat, Money, PricingTier } from '~/api/types'
 import { useMe, useSessionState } from '~/features/auth/session-hooks'
-import { Card, MoneyTotal, Problem, StatusChip, TimeWithZone } from '~/shared/ui'
+import { Card, CoverImage, MoneyTotal, Problem, StatusChip, TimeWithZone } from '~/shared/ui'
 import { SeatPicker } from './SeatPicker'
 import { usePublicEvent, useEventSeatMap } from './public-hooks'
 import { useSeatSelection } from './seat-selection'
@@ -27,6 +27,9 @@ export function PublicEventPage() {
   return (
     <div className="space-y-8">
       <div>
+        {/* Above the title, and eager rather than lazy - it is the first thing in the
+            viewport, so deferring it only guarantees it arrives late. */}
+        <CoverImage src={details.coverImageUrl} className="mb-6" eager />
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <h1 className="text-title">{details.title}</h1>
           {!onSale && <StatusChip status={details.status ?? 'DRAFT'} />}
