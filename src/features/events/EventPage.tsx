@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
+import { CancelEventPanel, CancellationProgress } from '~/features/refunds/CancelEvent'
 import { ApiError } from '~/api/errors'
 import type { Event, Money, PricingTierInput, Venue } from '~/api/types'
 import { formatMoney } from '~/shared/format'
@@ -36,6 +37,9 @@ export function EventPage() {
   return (
     <div className="space-y-8">
       <Header event={event.data} venue={venue.data} />
+      {/* First, because a cancelled Event is a thing being finished rather than edited, and
+          the forms below it are about an event that is still happening. */}
+      {event.data.status === 'CANCELLED' && <CancellationProgress event={event.data} />}
       <Details eventId={eventId} event={event.data} />
       <Schedule eventId={eventId} event={event.data} venue={venue.data} />
       <Pricing eventId={eventId} event={event.data} />
@@ -61,11 +65,24 @@ function Header({ event, venue }: { event: Event; venue: Venue }) {
           <TimeWithZone iso={event.startsAt} timeZone={venue.timezone} />
         </p>
       </div>
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4">
         {(event.soldCount ?? 0) > 0 && (
-          <span className="font-numeric text-numeric text-ink-soft">
+          <Link
+            to={`/manage/events/${event.id}/orders`}
+            className="font-numeric text-numeric underline underline-offset-4"
+          >
             {event.soldCount} sold
-          </span>
+          </Link>
+        )}
+        {/* requirements/008 criterion 10, where an organizer would look for it. Loud, because
+            it is money taken for seats that were never delivered. */}
+        {(event.refundRequiredCount ?? 0) > 0 && (
+          <Link
+            to={`/manage/events/${event.id}/orders`}
+            className="border-2 border-ink bg-hold px-2 py-1 text-label uppercase text-ink"
+          >
+            {event.refundRequiredCount} owed a refund
+          </Link>
         )}
         <StatusChip status={event.status} />
       </div>
@@ -387,6 +404,14 @@ function Pricing({ eventId, event }: { eventId: string; event: Event }) {
             </Button>
           )}
         </div>
+
+        {/* Published and not yet cancelled: the reversible action above is loud and this one
+            is quiet, which is DESIGN.md's rule about the destructive path being the harder. */}
+        {!isDraft && event.status !== 'CANCELLED' && (
+          <div className="border-t-2 border-ink pt-6">
+            <CancelEventPanel event={event} />
+          </div>
+        )}
       </div>
     </Card>
   )

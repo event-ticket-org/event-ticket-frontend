@@ -11,6 +11,7 @@ import {
 import { AdminPage } from '~/features/admin/AdminPage'
 import { CreateOrganizationPage } from '~/features/organizations/CreateOrganizationPage'
 import { TeamPage } from '~/features/organizations/TeamPage'
+import { EventOrdersPage } from '~/features/refunds/EventOrdersPage'
 import { VenuePage } from '~/features/venues/VenuePage'
 import { VenuesPage } from '~/features/venues/VenuesPage'
 import { EventPage } from '~/features/events/EventPage'
@@ -88,6 +89,7 @@ export const router = createBrowserRouter([
               { path: '/manage/venues/:venueId', element: <VenuePage /> },
               { path: '/manage/events', element: <EventsPage /> },
               { path: '/manage/events/:eventId', element: <EventPage /> },
+              { path: '/manage/events/:eventId/orders', element: <EventOrdersPage /> },
             ],
           },
         ],
