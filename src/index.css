@@ -165,3 +165,43 @@
     font-variant-numeric: tabular-nums;
   }
 }
+
+/*
+   Printing, which in this product means one thing: a Ticket, handed to somebody who is not
+   carrying the phone it was bought on.
+
+   Colours move by token: every surface here is `paper` or `paper-sunk`, the utilities emit
+   `var(--color-paper)`, and redefining the two turns the whole page white in one place. An
+   off-white ground is a full sheet of ink for a tint nobody asked to pay for.
+
+   Shadows cannot move the same way, and finding that out took printing one. Tailwind inlines a
+   `--shadow-*` theme value into the utility - `shadow-raised` compiles to the literal
+   `4px 4px 0 var(--color-ink)`, not to `var(--shadow-raised)` - so the token is unreachable at
+   runtime and only a rule on the element will do. Hence `!important` here and nowhere else in
+   this file: a print stylesheet overrides a whole design system built for a screen, and a solid
+   offset shadow is the clearest case of that. It says "this can be pressed", which on paper is
+   a grey block beside every card and a lie besides.
+*/
+@media print {
+  :root {
+    --color-paper: #fff;
+    --color-paper-sunk: #fff;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-shadow: none !important;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  /* The sheet's own edge is the container. A 640px column with `py-8` is a phone's margins
+     printed inside the margin the printer already left. */
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+}

@@ -28,7 +28,12 @@ export function PublicLayout() {
   const { data: me } = useMe()
   return (
     <div className="min-h-dvh bg-paper text-ink">
-      <header className="border-b-2 border-ink bg-paper">
+      {/*
+        Navigation is a thing to click, and paper is not. The one page in this shell anybody
+        prints is a ticket, and a printed header is a strip of ink and a line somebody has to
+        cut off.
+      */}
+      <header className="border-b-2 border-ink bg-paper print:hidden">
         <nav className="mx-auto flex max-w-[640px] items-center justify-between px-4 py-4">
           <Link to="/" className="text-heading uppercase tracking-tight">
             Event Ticket

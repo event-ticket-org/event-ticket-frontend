@@ -917,6 +917,35 @@ on a 375px screen, and pretending otherwise produces an editor that corrupts map
 **Scanner shell — portrait phone only.** Full bleed at every size. Controls live in the bottom
 third; the camera view takes the top two thirds. The verdict covers everything.
 
+### Print
+
+Printing this product means one thing: a Ticket, on paper, handed to somebody who is not
+carrying the phone it was bought on. Every rule below follows from that being the only page
+anybody prints.
+
+**What paper drops.** Navigation, the back link, `Save the image`, the resend card, and the
+advice about sending a code on to somebody. All of them are things to click or things that
+only make sense at a screen; printed, they are ink and a line to cut off.
+
+**What paper adds.** Nothing. The ticket already carries the Event, the venue, the time in the
+Venue's zone, the seat, the tier and the code — which is the argument for printing it at all.
+
+**Colours move by token; shadows do not.** Every surface here is `{colors.paper}` or
+`{colors.paper-sunk}`, and the utilities emit `var(--color-paper)`, so redefining those two
+turns the page white in one place. Shadows are compiled to a literal value rather than to a
+variable, so they need a rule of their own — the one `!important` in the stylesheet, and worth
+it: a solid offset says "this can be pressed", which on paper is a grey block and a lie.
+
+**A ticket never splits across two sheets.** `break-inside: avoid` on the card. Half a ticket is
+a QR nobody can scan. Pages are not forced one-per-ticket: two fit a sheet, and cutting a sheet
+is what people do with tickets anyway.
+
+**The quiet zone is the surface, not the image.** The QR's light modules are transparent, so the
+zone is `{colors.paper}` on a screen and white on paper without either being baked in. A cream
+quiet zone at 240px square on every ticket is a lot of ink for a tint the sheet already
+provides. A *downloaded* QR keeps an opaque one — that file is looked at wherever its recipient
+looks at things, and a transparent QR on a dark background is a QR nothing can read.
+
 ### Touch targets
 
 ```
@@ -989,8 +1018,6 @@ Honest list of what this document does not yet decide.
   transformation — a five-megabyte poster is five megabytes on a phone. nfr.md names the
   ceiling rather than a pipeline deliberately, and this is the price of that: revisit when
   somebody is paying for the bandwidth.
-- **No print styles.** A buyer printing a ticket gets the browser's default, which is not a decision
-  anybody made.
 - **No specification for the platform-admin screens.** They are internal, low-traffic, and will
   inherit the manager shell until they have enough surface to deserve their own rules.
 - **Nothing here has been tested against a room-sized map.** `nfr.md` puts 2,000 seats on an
