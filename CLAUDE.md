@@ -121,6 +121,19 @@ hook adds a mechanism this codebase does not otherwise have. Render both and hid
 of the accessibility tree rather than read twice. Share the stateful control between them, as
 `AdminPage` shares `Decision` - the alternative is one two-step flow written out twice.
 
+**A CSS file that will not parse keeps the last one that did.** Vite serves the previous good
+stylesheet and says nothing in the browser; the error is in the terminal running `npm run dev`,
+which is not where you are looking. Three rounds of "that change had no effect" here were one
+stray `}` left behind by an edit, and each round produced a confident wrong theory about the
+cascade. When a style change appears to do nothing, run `npm run build` before theorising - it
+fails loudly on the same file.
+
+**Tailwind inlines a `--shadow-*` theme value; it emits `var()` for colours.** `shadow-raised`
+compiles to the literal `4px 4px 0 var(--color-ink)`, not to `var(--shadow-raised)`, so
+redefining the shadow token at runtime does nothing and only a rule on the element will do.
+`bg-paper` does compile to `var(--color-paper)`, which is why the print stylesheet can repaint
+every surface by moving two tokens and still needs `!important` for one shadow rule.
+
 **Measure the painted extent, not the border box.** `getBoundingClientRect` excludes
 `box-shadow`, and in this system every raised control paints 4–6px past its box. Two elements
 can report a clean gap and still overlap on screen.

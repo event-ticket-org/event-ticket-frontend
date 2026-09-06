@@ -47,7 +47,7 @@ export function TicketsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <Link to="/orders" className="text-label uppercase underline underline-offset-4">
+        <Link to="/orders" className="text-label uppercase underline underline-offset-4 print:hidden">
           My tickets
         </Link>
         <h1 className="mt-2 text-title">{order.data.eventTitle}</h1>
@@ -56,7 +56,8 @@ export function TicketsPage() {
 
       <Problem error={tickets.error ?? resend.error} />
 
-      <p className="max-w-[68ch] text-body text-ink-soft">
+      {/* Advice for somebody at a screen. On paper the ticket is the whole message. */}
+      <p className="max-w-[68ch] text-body text-ink-soft print:hidden">
         Show a code at the door. Each seat has its own — send one on to whoever is using it.
       </p>
 
@@ -72,7 +73,7 @@ export function TicketsPage() {
         </ul>
       )}
 
-      <Card>
+      <Card className="print:hidden">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <p className="max-w-[68ch] text-body">
             {/* Criterion 8. Worth having because the first email is the one that goes to spam. */}
@@ -134,7 +135,8 @@ function TicketCard({ ticket, event }: { ticket: Ticket; event?: PublicEvent }) 
   const spent = ticket.status !== 'VALID'
 
   return (
-    <Card className="h-full">
+    // Never split across two sheets: half a ticket is a QR nobody can scan.
+    <Card className="h-full break-inside-avoid">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="font-numeric text-numeric-lg">{ticket.seatLabel ?? 'General admission'}</p>
@@ -143,14 +145,33 @@ function TicketCard({ ticket, event }: { ticket: Ticket; event?: PublicEvent }) 
         <StatusChip status={ticket.status} />
       </div>
 
+      {/*
+        264px around 12px of quiet zone is a 240px code, which is the minimum DESIGN.md sets
+        and which this was under - a scanner that will not focus is the failure this size
+        exists to prevent, and it is the failure nobody notices until a door.
+      */}
       <div className="mt-4 flex justify-center">
         <div
-          className={cx('size-56 border-2 border-ink bg-paper p-3', spent && 'opacity-40')}
+          className={cx('size-[264px] border-2 border-ink bg-paper p-3', spent && 'opacity-40')}
           dangerouslySetInnerHTML={{ __html: svg }}
           role="img"
           aria-label={`Ticket QR code for seat ${ticket.seatLabel ?? ''}`}
         />
       </div>
+
+      {/*
+        The code in words, which DESIGN.md has always asked for and this card did not have.
+        It is the fallback for a scanner that will not focus - and on paper it is the whole
+        difference between a smudged print and a person standing at a gate with nothing, since
+        the scanner takes a typed code for exactly this reason.
+
+        Not a URL and not logged (nfr.md); printed and shown is what a ticket is for.
+      */}
+      {!spent && (
+        <p className="mt-3 select-all break-all border-2 border-ink bg-paper-sunk px-3 py-2 text-center font-numeric text-code text-ink">
+          {code}
+        </p>
+      )}
 
       {ticket.status === 'REDEEMED' && ticket.redeemedAt && event && (
         <p className="mt-3 text-body text-ink-soft">
@@ -165,7 +186,7 @@ function TicketCard({ ticket, event }: { ticket: Ticket; event?: PublicEvent }) 
 
       <Button
         variant="secondary"
-        className="mt-4 w-full"
+        className="mt-4 w-full print:hidden"
         pending={saving}
         disabled={spent}
         onClick={() => void download()}
