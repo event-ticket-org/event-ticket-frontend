@@ -17,6 +17,8 @@ import { PublicEventPage } from '~/features/discovery/PublicEventPage'
 import { PublicEventsPage } from '~/features/discovery/PublicEventsPage'
 import { CheckoutPage } from '~/features/checkout/CheckoutPage'
 import { OrderPage } from '~/features/checkout/OrderPage'
+import { OrdersPage } from '~/features/tickets/OrdersPage'
+import { TicketsPage } from '~/features/tickets/TicketsPage'
 import { RegisterPage, SignInPage, VerifyEmailPage } from '~/features/auth/AuthPages'
 import { NotFoundPage, PlaceholderPage } from './pages'
 
@@ -46,9 +48,9 @@ export const router = createBrowserRouter([
       {
         element: <RequireSignedIn />,
         children: [
-          { path: '/orders', element: <PlaceholderPage what="Your orders and tickets" slice="3" /> },
+          { path: '/orders', element: <OrdersPage /> },
           { path: '/orders/:orderId', element: <OrderPage /> },
-          { path: '/orders/:orderId/tickets', element: <PlaceholderPage what="Your tickets, with their QR codes" slice="3" /> },
+          { path: '/orders/:orderId/tickets', element: <TicketsPage /> },
         ],
       },
     ],

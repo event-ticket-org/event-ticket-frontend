@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react'
-import QRCode from 'qrcode'
 import type { NextAction as NextActionShape } from '~/api/types'
+import { useQrSvg } from '~/shared/qr'
 import { Card } from '~/shared/ui'
 
 /**
@@ -106,33 +105,3 @@ function QrTransfer({ payload, reference }: { payload: string; reference?: strin
     </Card>
   )
 }
-
-/** Rendered to SVG rather than canvas, so it stays crisp and prints. */
-function useQrSvg(payload: string): string {
-  const [svg, setSvg] = useState('')
-
-  useEffect(() => {
-    let current = true
-    if (!payload) {
-      setSvg('')
-      return
-    }
-    void QRCode.toString(payload, {
-      type: 'svg',
-      errorCorrectionLevel: 'M',
-      margin: 0,
-      color: { dark: '#14110f', light: '#fdfbf4' },
-    }).then((rendered) => {
-      if (current) {
-        setSvg(rendered.replace('<svg', '<svg class="size-full"'))
-      }
-    })
-    return () => {
-      current = false
-    }
-  }, [payload])
-
-  return svg
-}
-
-export { useQrSvg }

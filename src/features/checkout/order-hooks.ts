@@ -1,12 +1,14 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '~/api/client'
-import { pageQuery } from '~/api/paging'
+import { nextPageParam, pageQuery } from '~/api/paging'
 import type { Order, OrderPage, PaymentSession, Ticket } from '~/api/types'
 
 export function useOrders() {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ['orders'],
-    queryFn: () => api.get<OrderPage>(`/orders?${pageQuery(undefined)}`),
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam }) => api.get<OrderPage>(`/orders?${pageQuery(pageParam)}`),
+    getNextPageParam: nextPageParam,
   })
 }
 
