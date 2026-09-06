@@ -3,12 +3,14 @@ import {
   AdminLayout,
   ManagerLayout,
   PublicLayout,
+  RequireManager,
   RequirePlatformAdmin,
   RequireSignedIn,
   ScannerLayout,
 } from './layouts'
 import { AdminPage } from '~/features/admin/AdminPage'
 import { CreateOrganizationPage } from '~/features/organizations/CreateOrganizationPage'
+import { TeamPage } from '~/features/organizations/TeamPage'
 import { VenuePage } from '~/features/venues/VenuePage'
 import { VenuesPage } from '~/features/venues/VenuesPage'
 import { EventPage } from '~/features/events/EventPage'
@@ -78,10 +80,16 @@ export const router = createBrowserRouter([
         element: <ManagerLayout />,
         children: [
           { path: '/manage', element: <PlaceholderPage what="The organization dashboard" slice="2" /> },
-          { path: '/manage/venues', element: <VenuesPage /> },
-          { path: '/manage/venues/:venueId', element: <VenuePage /> },
-          { path: '/manage/events', element: <EventsPage /> },
-          { path: '/manage/events/:eventId', element: <EventPage /> },
+          { path: '/manage/team', element: <TeamPage /> },
+          {
+            element: <RequireManager />,
+            children: [
+              { path: '/manage/venues', element: <VenuesPage /> },
+              { path: '/manage/venues/:venueId', element: <VenuePage /> },
+              { path: '/manage/events', element: <EventsPage /> },
+              { path: '/manage/events/:eventId', element: <EventPage /> },
+            ],
+          },
         ],
       },
       {

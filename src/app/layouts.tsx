@@ -1,5 +1,12 @@
+import { useEffect } from 'react'
 import { Link, Navigate, Outlet, useLocation } from 'react-router'
-import { useMe, useSessionState, useSignOut, useSwitchOrganization } from '~/features/auth/session-hooks'
+import {
+  useActiveMembership,
+  useMe,
+  useSessionState,
+  useSignOut,
+  useSwitchOrganization,
+} from '~/features/auth/session-hooks'
 import { Button, EmptyState } from '~/shared/ui'
 
 /**
@@ -47,11 +54,43 @@ export function PublicLayout() {
   )
 }
 
+/**
+ * The organizer's shell, and the one place that has to choose an Organization.
+ *
+ * Signing in chooses none - `Login` issues a session with no active Organization on purpose,
+ * so the choice is always explicit and never inferred from a URL (ADR-0004). Nothing was
+ * making it, which left the shell dead after every sign-in: `requireOrganizationId` refused
+ * every request with "No active organization", while the switcher displayed the first
+ * membership as though it were selected. With one membership there was no way out at all,
+ * because a select with one option cannot be changed.
+ *
+ * So the shell adopts one, and the switcher shows the one actually in the token rather than
+ * the top of the list. A picked-for-you organization that is visible and changeable beats a
+ * displayed one that is neither.
+ */
 export function ManagerLayout() {
   const { data: me, isLoading } = useMe()
+  const { organizationId } = useSessionState()
   const switchOrganization = useSwitchOrganization()
 
-  if (isLoading) {
+  const active = me?.memberships.find((m) => m.organizationId === organizationId)
+
+
+  // One id, not the array it came from: a fresh array every render would re-run this every
+  // render, and `isPending` is not a guard against a second call in the same tick. `mutate` is
+  // stable, and `refused` is the other half - switching reissues the token, so a failure that
+  // did not stop this would ask again for as long as it kept failing.
+  const { mutate: switchTo, isError: refused } = switchOrganization
+  const adoptId = active ? undefined : me?.memberships[0]?.organizationId
+  const adopting = adoptId !== undefined && !refused
+
+  useEffect(() => {
+    if (adoptId !== undefined && !refused) {
+      switchTo({ id: adoptId })
+    }
+  }, [adoptId, refused, switchTo])
+
+  if (isLoading || adopting) {
     return <p className="p-8 text-body text-ink-soft">Loading…</p>
   }
   if (!me?.memberships.length) {
@@ -79,8 +118,17 @@ export function ManagerLayout() {
     <ManagerFrame
       nav={
         <>
-          <NavLink to="/manage/venues">Venues</NavLink>
-          <NavLink to="/manage/events">Events</NavLink>
+          {/* Gate Staff are refused every venue and event operation on the server
+              (`Managers.requireCallerCanManageEvents`), so offering them the sections would be
+              a promise the next click breaks. Team stays: knowing who else holds the keys is
+              not a privilege, and the list is readable by any member. */}
+          {active?.role !== 'GATE_STAFF' && (
+            <>
+              <NavLink to="/manage/venues">Venues</NavLink>
+              <NavLink to="/manage/events">Events</NavLink>
+            </>
+          )}
+          <NavLink to="/manage/team">Team</NavLink>
         </>
       }
       aside={
@@ -89,7 +137,11 @@ export function ManagerLayout() {
         <select
           aria-label="Active organization"
           className="min-h-11 border-2 border-ink bg-paper px-3 py-2 text-body text-ink"
-          value={me.memberships.find((m) => m.organizationId)?.organizationId ?? ''}
+          // The one in the token, not the first in the list. A switcher showing an
+          // organization that is not the active one is worse than no switcher: every request
+          // is scoped to the token's claim, so the header would be naming the wrong tenant
+          // above a screen acting on another.
+          value={organizationId ?? ''}
           onChange={(change) => switchOrganization.mutate({ id: change.target.value })}
         >
           {me.memberships.map((membership) => (
@@ -116,6 +168,31 @@ export function AdminLayout() {
       <Outlet />
     </ManagerFrame>
   )
+}
+
+/**
+ * Venues and events, for the people the server will let near them.
+ *
+ * A route rather than a hidden link, because a link is a suggestion and a URL is not: Gate
+ * Staff typing `/manage/events` used to get the refusal in a `Problem`, an empty list, and a
+ * New event button that would have been refused too. An honest screen costs less than the
+ * three seconds spent finding out.
+ */
+export function RequireManager() {
+  const { membership, isLoading, canManageEvents } = useActiveMembership()
+  if (isLoading) {
+    return <p className="p-8 text-body text-ink-soft">Loading…</p>
+  }
+  if (!canManageEvents) {
+    return (
+      <EmptyState headline="That part is not yours">
+        You are gate staff for {membership?.organizationName ?? 'this organization'}, so venues
+        and events belong to its owners and managers. Your part is the door — the link to it
+        comes from whoever asked you to work it.
+      </EmptyState>
+    )
+  }
+  return <Outlet />
 }
 
 export function RequirePlatformAdmin() {
