@@ -3,6 +3,7 @@ import type { MapElement, SeatMap, SeatMapSeat } from '~/api/types'
 import { Button, Field, Problem, Segment, Segmented, cx, inputClass } from '~/shared/ui'
 import {
   FINE_SNAP,
+  boundsAround,
   boundsOf,
   elementSize,
   panBounds,
@@ -11,10 +12,26 @@ import {
   zoomBounds,
   type Rect,
 } from './geometry'
+import { editorAction } from './editor-keys'
 import { SeatMapView } from './SeatMapView'
 import { describeProblem } from './validation'
 import { useSeatMapDraft } from './useSeatMapDraft'
 import type { BlockSpec } from './generator'
+
+/**
+ * How far something has been moved, for the live region.
+ *
+ * In map units rather than in key presses, because a step is not always the same size - Shift
+ * moves by a fifth of one - and "four presses right" stops being true the moment somebody
+ * mixes the two.
+ */
+function offsetOf(dx: number, dy: number): string {
+  const parts = [
+    dx === 0 ? '' : `${Math.abs(dx)} ${dx > 0 ? 'right' : 'left'}`,
+    dy === 0 ? '' : `${Math.abs(dy)} ${dy > 0 ? 'down' : 'up'}`,
+  ].filter(Boolean)
+  return parts.length === 0 ? 'Back where it started.' : `Moved ${parts.join(', ')}.`
+}
 
 const TIER_FILLS = [
   'fill-tier-1',
@@ -49,6 +66,20 @@ export function SeatMapEditor({
 }) {
   const draft = useSeatMapDraft(saved)
   const [drag, setDrag] = useState<Drag | null>(null)
+  /**
+   * The offset a keyboard move has applied so far, or null when nothing is being moved.
+   *
+   * Held here rather than in the draft because it is not part of the map - it is the state of
+   * a gesture, exactly as `drag` is for a pointer, and the draft already keeps the origin the
+   * offset is measured from.
+   *
+   * A ref rather than state, and nothing renders from it. Held down, an arrow repeats faster
+   * than React re-renders, and two presses landing in one batch would both read the same
+   * offset - so the seat would move one step for two presses, and keep drifting behind the
+   * key the longer it was held.
+   */
+  const moving = useRef<{ dx: number; dy: number; element: number | null } | null>(null)
+  const [announcement, setAnnouncement] = useState('')
   const pending = useRef<{ x: number; y: number } | null>(null)
   const frame = useRef<number | null>(null)
   const [generating, setGenerating] = useState(false)
@@ -114,6 +145,106 @@ export function SeatMapEditor({
   const tierFill = (seat: SeatMapSeat) => {
     const index = draft.tiers.indexOf(seat.tierName)
     return TIER_FILLS[index % TIER_FILLS.length] ?? 'fill-paper-sunk'
+  }
+
+  /** Pick up - move - drop, which is what a drag is when it is taken apart. */
+  const pickUp = (index: number, element: number | null) => {
+    // The selection, not the focused seat. Focus and selection are different things on a
+    // keyboard in a way they never are under a pointer - somebody arrows across the map to
+    // read a seat's label without meaning to give up the twenty they had chosen - so `m` takes
+    // hold of what is chosen, and only falls back to the seat under focus when nothing is.
+    // Worked out here rather than read back from state, exactly as the pointer handler does:
+    // `toggle` has not taken effect by the next line.
+    const seats = draft.selection.size > 0 ? draft.selection : new Set([index])
+    if (element === null && draft.selection.size === 0) {
+      draft.toggle(index, false)
+    }
+    draft.beginDrag(element === null ? seats : [], element)
+    moving.current = { dx: 0, dy: 0, element }
+    setAnnouncement(
+      (element === null
+        ? `Moving ${seats.size} ${seats.size === 1 ? 'seat' : 'seats'}.`
+        : 'Moving a landmark.') +
+        ' Arrow keys to move, Shift for finer steps, Enter to drop, Escape to put it back.',
+    )
+  }
+
+  /**
+   * `dragSelectionTo` is an absolute offset from what `beginDrag` snapshotted, so a move is
+   * held as a running total and cancelling is an offset of zero rather than an undo stack.
+   *
+   * The step is the one the key asked for, which is how the pointer works too - no modifier
+   * lands on the quarter lattice, Shift on the fine one. Putting something back passes the
+   * fine lattice: the coarse lattice is a subset of it, so every coordinate this editor can
+   * produce survives the round trip unchanged, where snapping to quarters would drag a
+   * finely-placed seat a fifth of a pitch on the way home.
+   */
+  const applyMove = (dx: number, dy: number, step: number, element: number | null) => {
+    if (element !== null) {
+      draft.dragElementTo(dx, dy, step)
+    } else {
+      draft.dragSelectionTo(dx, dy, step)
+    }
+  }
+
+  /** What somebody who cannot see the map needs about a seat, in one string. */
+  const describeSeat = (seat: SeatMapSeat, index: number) =>
+    `${seat.label || 'unlabelled'}, ${seat.tierName}` +
+    (draft.selection.has(index) ? ', selected' : '')
+
+  /**
+   * `element` is what a pick-up would take hold of, passed in rather than read off the draft:
+   * a landmark is picked up from its own button in the panel, which selects it in the same
+   * press, and `selectElement` has not taken effect by the time `beginDrag` needs to know.
+   */
+  const handleKey = (
+    event: React.KeyboardEvent,
+    index: number,
+    element: number | null,
+  ): boolean => {
+    const action = editorAction(event, moving.current !== null)
+    // `select` is left to `SeatMapView`, which already calls `onActivate` for it. Claiming it
+    // here would be the same rule written twice.
+    if (!action || action.kind === 'select') {
+      return false
+    }
+    event.preventDefault()
+    switch (action.kind) {
+      case 'pickUp':
+        pickUp(index, element)
+        break
+      case 'nudge': {
+        const from = moving.current
+        if (!from) {
+          break
+        }
+        const next = { ...from, dx: from.dx + action.dx, dy: from.dy + action.dy }
+        applyMove(next.dx, next.dy, Math.abs(action.dx) || Math.abs(action.dy), next.element)
+        moving.current = next
+        setAnnouncement(offsetOf(next.dx, next.dy))
+        break
+      }
+      case 'drop': {
+        const { dx, dy } = moving.current ?? { dx: 0, dy: 0 }
+        moving.current = null
+        setAnnouncement(`Dropped. ${offsetOf(dx, dy)}`)
+        break
+      }
+      case 'cancelMove':
+        applyMove(0, 0, FINE_SNAP, moving.current?.element ?? null)
+        moving.current = null
+        setAnnouncement('Put back.')
+        break
+      case 'clearSelection':
+        draft.clearSelection()
+        setAnnouncement('Nothing selected.')
+        break
+    }
+    return true
+  }
+
+  const endKeyboardMove = () => {
+    moving.current = null
   }
 
   const seatClass = (seat: SeatMapSeat, index: number) =>
@@ -222,6 +353,27 @@ export function SeatMapEditor({
         to pan · <kbd className="font-numeric">⌘</kbd> or <kbd className="font-numeric">Ctrl</kbd> and the
         wheel to zoom · <kbd className="font-numeric">Delete</kbd> to remove
       </p>
+      <p className="text-body text-ink-soft">
+        By keyboard: <kbd className="font-numeric">Tab</kbd> to the map, arrows between seats,{' '}
+        <kbd className="font-numeric">Enter</kbd> to select · <kbd className="font-numeric">M</kbd> to
+        pick the selection up, then arrows to move it (<kbd className="font-numeric">Shift</kbd> for
+        finer steps) and <kbd className="font-numeric">M</kbd> again to drop it ·{' '}
+        <kbd className="font-numeric">Esc</kbd> to put it back
+      </p>
+
+      {/*
+        Where a move is going. Shown rather than hidden, for the same reason the picker's list
+        is a view and not an alternative: being in a mode is the thing a keyboard editor is
+        worst at telling you, and a mode nobody can see is one people leave by guessing. The
+        pointer says it by holding a button down; this says it in words, to everybody.
+
+        Polite rather than assertive - it narrates a gesture in progress, and interrupting
+        somebody mid-arrow to tell them the arrow worked is worse than saying nothing. It keeps
+        its height when empty so the map does not jump the first time anything is picked up.
+      */}
+      <p className="min-h-[1lh] text-body text-ink" role="status" aria-live="polite">
+        {announcement}
+      </p>
 
       <div className="flex flex-col gap-4 lg:flex-row">
         <div className="relative min-w-0 flex-1 border-2 border-ink bg-paper">
@@ -244,9 +396,34 @@ export function SeatMapEditor({
             marquee={marquee}
             selectedElement={draft.elementSelection}
             ariaLabel="Seat map editor"
+            keyboard={{
+              label: describeSeat,
+              selected: (_seat, index) => draft.selection.has(index),
+              onActivate: (_seat, index, event) => {
+                const action = editorAction(event, false)
+                if (action?.kind === 'select') {
+                  draft.toggle(index, action.additive)
+                }
+              },
+              // Arrowing to a seat outside a zoomed view moves focus to something nobody can
+              // see. `boundsAround` returns the view it was given when nothing needs to move,
+              // so the fitted view - which pads a seat's width past the outermost seat - is
+              // never pinned by simply arrowing along a row.
+              onFocus: (seat) => {
+                const next = boundsAround(draft.bounds, seat, 1)
+                if (next !== draft.bounds) {
+                  draft.setView(next)
+                }
+              },
+              onKeyDown: (event, index) => handleKey(event, index, draft.elementSelection),
+            }}
             className="h-[32rem] w-full"
             onSeatPointerDown={(_seat, index, event) => {
               capture(event)
+              // A hand on the pointer ends a keyboard move: the two gestures share the one
+              // drag origin, and a move left open would turn the arrows back into nudges long
+              // after anybody expected them to.
+              endKeyboardMove()
 
               // A modifier click adjusts the selection and nothing else. Starting a drag
               // from one would move a seat the person was in the middle of deselecting.
@@ -273,12 +450,14 @@ export function SeatMapEditor({
             }}
             onElementPointerDown={(_element, index, point, event) => {
               capture(event)
+              endKeyboardMove()
               draft.selectElement(index)
               draft.setView(draft.bounds)
               draft.beginDrag([], index)
               setDrag({ kind: 'move-element', from: point })
             }}
             onBackgroundPointerDown={(point, event) => {
+              endKeyboardMove()
               draft.selectElement(null)
               if (event.button === 1 || event.altKey) {
                 setDrag({ kind: 'pan', last: point })
@@ -334,7 +513,16 @@ export function SeatMapEditor({
           />
         </div>
 
-        <SidePanel draft={draft} tierFill={tierFill} />
+        <SidePanel
+          draft={draft}
+          tierFill={tierFill}
+          onLandmarkKeyDown={(event, index) => {
+            if (draft.elementSelection !== index) {
+              draft.selectElement(index)
+            }
+            handleKey(event, index, index)
+          }}
+        />
       </div>
 
       </div>
@@ -358,9 +546,12 @@ export function SeatMapEditor({
 function SidePanel({
   draft,
   tierFill,
+  onLandmarkKeyDown,
 }: {
   draft: ReturnType<typeof useSeatMapDraft>
   tierFill: (seat: SeatMapSeat) => string
+  /** The editor's own key vocabulary, so a landmark moves by the same keys a seat does. */
+  onLandmarkKeyDown: (event: React.KeyboardEvent, index: number) => void
 }) {
   const [tierName, setTierName] = useState('')
   const selected = draft.map.seats
@@ -472,6 +663,10 @@ function SidePanel({
               <li key={index}>
                 <button
                   onClick={() => draft.selectElement(index)}
+                  // The same vocabulary the map has, on the one control a landmark is
+                  // reachable from without a pointer. Selecting here rather than relying on a
+                  // click first: pressing M on a landmark is a whole intention by itself.
+                  onKeyDown={(event) => onLandmarkKeyDown(event, index)}
                   aria-pressed={draft.elementSelection === index}
                   className={cx(
                     'flex w-full items-center justify-between gap-3 border-2 border-ink px-3 py-2 text-left text-body',

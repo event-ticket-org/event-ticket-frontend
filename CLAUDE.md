@@ -93,6 +93,14 @@ and up/down lands on the nearest seat in `x` rather than the same position along
 are not the same length and counting along sends somebody sideways across the room. That is in
 `seat-navigation.ts` and it is unit tested; the component only turns key presses into calls.
 
+**A gesture in progress is a ref, not state.** The editor's keyboard move keeps its running
+offset in a ref because a held-down arrow repeats faster than React re-renders: two presses
+landing in one batch both read the same offset, so the seat moves one step for two presses and
+drifts further behind the longer the key is held. What saves the map from the same problem is
+that `dragSelectionTo` is *absolute* from what `beginDrag` snapshotted — batched calls end on
+the right answer because the last one is the whole truth, not an increment. That is also what
+makes cancelling a move an offset of zero rather than an undo stack.
+
 **The picker's list is not an accessible alternative, it is the second view.** Offered to
 everybody in the same Segmented control as the zoom, because a sighted person hunting for two
 seats together in row F wants it too, and a version only screen-reader users see is a version

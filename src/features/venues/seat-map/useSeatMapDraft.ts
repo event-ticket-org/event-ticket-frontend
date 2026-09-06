@@ -242,6 +242,18 @@ export function useSeatMapDraft(saved: SeatMap | undefined) {
     [map.seats],
   )
 
+  /**
+   * Nothing selected at all - seats and the landmark both.
+   *
+   * `selectElement(null)` only puts down the landmark, because a pointer never needs to let go
+   * of both at once: a click on the background is already followed by a marquee that replaces
+   * the seat selection. Escape has no such second half.
+   */
+  const clearSelection = useCallback(() => {
+    setSelection(new Set())
+    setElementSelection(null)
+  }, [])
+
   const toggle = useCallback((index: number, additive: boolean) => {
     setElementSelection(null)
     setSelection((current) => {
@@ -291,6 +303,7 @@ export function useSeatMapDraft(saved: SeatMap | undefined) {
     removeElement,
     selectWithin,
     toggle,
+    clearSelection,
     settle,
     discard,
   }
