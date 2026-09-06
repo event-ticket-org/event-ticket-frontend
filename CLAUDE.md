@@ -101,6 +101,13 @@ that `dragSelectionTo` is *absolute* from what `beginDrag` snapshotted — batch
 the right answer because the last one is the whole truth, not an increment. That is also what
 makes cancelling a move an offset of zero rather than an undo stack.
 
+**Extending a selection means a rectangle, not a range.** `Shift`+arrow is the listbox gesture
+everybody has, and the array-range meaning it usually carries is wrong here: array order is the
+order seats were generated in, so a range through it is a diagonal nobody drew. Two seats bound
+a box, `rangeRect` builds it, and `selectWithin` is the same call the pointer's marquee makes -
+one gesture with two ways to perform it. The box is padded by a seat's radius, or a run along
+one row is a rectangle of zero height that misses a row-mate nudged off the line.
+
 **The picker's list is not an accessible alternative, it is the second view.** Offered to
 everybody in the same Segmented control as the zoom, because a sighted person hunting for two
 seats together in row F wants it too, and a version only screen-reader users see is a version

@@ -5,6 +5,7 @@ import {
   FINE_SNAP,
   boundsAround,
   boundsOf,
+  seatsWithin,
   elementSize,
   panBounds,
   rectBetween,
@@ -13,10 +14,16 @@ import {
   type Rect,
 } from './geometry'
 import { editorAction } from './editor-keys'
+import { rangeRect } from './seat-navigation'
 import { SeatMapView } from './SeatMapView'
 import { describeProblem } from './validation'
 import { useSeatMapDraft } from './useSeatMapDraft'
 import type { BlockSpec } from './generator'
+
+/** The one thing a selection that changed invisibly has to say. */
+function counted(seats: number): string {
+  return `${seats} ${seats === 1 ? 'seat' : 'seats'} selected.`
+}
 
 /**
  * How far something has been moved, for the live region.
@@ -355,7 +362,10 @@ export function SeatMapEditor({
       </p>
       <p className="text-body text-ink-soft">
         By keyboard: <kbd className="font-numeric">Tab</kbd> to the map, arrows between seats,{' '}
-        <kbd className="font-numeric">Enter</kbd> to select · <kbd className="font-numeric">M</kbd> to
+        <kbd className="font-numeric">Enter</kbd> to select ·{' '}
+        <kbd className="font-numeric">Shift</kbd> and an arrow to select a block,{' '}
+        <kbd className="font-numeric">⌘</kbd> or <kbd className="font-numeric">Ctrl</kbd> and{' '}
+        <kbd className="font-numeric">A</kbd> for all of them · <kbd className="font-numeric">M</kbd> to
         pick the selection up, then arrows to move it (<kbd className="font-numeric">Shift</kbd> for
         finer steps) and <kbd className="font-numeric">M</kbd> again to drop it ·{' '}
         <kbd className="font-numeric">Esc</kbd> to put it back
@@ -414,6 +424,22 @@ export function SeatMapEditor({
                 if (next !== draft.bounds) {
                   draft.setView(next)
                 }
+              },
+              // The keyboard's marquee. `selectWithin` is the same call a dragged box makes,
+              // given the box two seats bound - so one gesture, two ways to perform it, and
+              // nothing downstream can tell which was used.
+              onExtend: (from, to) => {
+                const rect = rangeRect(draft.map.seats, from, to)
+                if (rect) {
+                  draft.selectWithin(rect, false)
+                  // Worked out here rather than read back: `selectWithin` has not taken effect
+                  // by the next line, and a count one press behind is worse than none.
+                  setAnnouncement(counted(seatsWithin(draft.map.seats, rect).length))
+                }
+              },
+              onSelectAll: () => {
+                draft.selectAll()
+                setAnnouncement(counted(draft.map.seats.length))
               },
               onKeyDown: (event, index) => handleKey(event, index, draft.elementSelection),
             }}

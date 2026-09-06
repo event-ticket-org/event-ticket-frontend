@@ -249,6 +249,12 @@ export function useSeatMapDraft(saved: SeatMap | undefined) {
    * of both at once: a click on the background is already followed by a marquee that replaces
    * the seat selection. Escape has no such second half.
    */
+  /** Every seat there is. The keyboard's answer to a marquee thrown around the whole map. */
+  const selectAll = useCallback(() => {
+    setElementSelection(null)
+    setSelection(new Set(map.seats.map((_, index) => index)))
+  }, [map.seats])
+
   const clearSelection = useCallback(() => {
     setSelection(new Set())
     setElementSelection(null)
@@ -303,6 +309,7 @@ export function useSeatMapDraft(saved: SeatMap | undefined) {
     removeElement,
     selectWithin,
     toggle,
+    selectAll,
     clearSelection,
     settle,
     discard,

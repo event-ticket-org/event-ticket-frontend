@@ -1,4 +1,5 @@
 import type { SeatMapSeat } from '~/api/types'
+import { SEAT_RADIUS, type Rect } from './geometry'
 
 /**
  * Moving around a seat map without a pointer.
@@ -133,6 +134,39 @@ export function rowNameOf(labels: readonly string[], ordinal: number): string {
   // Trailing separators and spaces belong to the seat, not to the row's name.
   const prefix = first.slice(0, shared).replace(/[\s\-_]+$/, '')
   return prefix === '' ? `Row ${ordinal}` : `Row ${prefix}`
+}
+
+/**
+ * What "everything between these two seats" means when the two seats are in a room.
+ *
+ * A rectangle, not a run through the array. Array order is the order seats were generated in,
+ * so extending a selection along it would sweep up whichever seats happened to be made next -
+ * which in a ragged map is a diagonal nobody drew. The rectangle two seats bound is what a
+ * pointer's marquee would have produced around them, and matching it is the whole point: there
+ * is one selection gesture here with two ways to perform it, not two gestures.
+ *
+ * Padded by a seat's radius, so the box is around the two seats rather than between their
+ * centres. Without it a run along one row is a rectangle of zero height, and a row-mate nudged
+ * a quarter pitch off the line falls outside a selection it is visibly inside.
+ */
+export function rangeRect(
+  seats: readonly SeatMapSeat[],
+  anchor: number,
+  focus: number,
+): Rect | undefined {
+  const from = seats[anchor]
+  const to = seats[focus]
+  if (!from || !to) {
+    return undefined
+  }
+  const minX = Math.min(from.x, to.x) - SEAT_RADIUS
+  const minY = Math.min(from.y, to.y) - SEAT_RADIUS
+  return {
+    x: minX,
+    y: minY,
+    width: Math.max(from.x, to.x) + SEAT_RADIUS - minX,
+    height: Math.max(from.y, to.y) + SEAT_RADIUS - minY,
+  }
 }
 
 /**
