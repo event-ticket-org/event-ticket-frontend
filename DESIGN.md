@@ -584,6 +584,46 @@ browsers and would not scale with the zoom if it did. Two concentric rings in ma
 `{colors.ink}` 0.2 and `{colors.info}` 0.12: the ink one underneath is what guarantees the ring
 against a tier fill of similar lightness, which `{colors.info}` alone does not.
 
+**The editor moves a seat by picking it up, not by holding a modifier.** The obvious design is
+a modifier held down with the arrows, and it is the wrong one: `Alt`+`←` is Back in a browser
+and `Ctrl`/`⌘`+`←` moves by word, so every modifier worth having is already spoken for and
+taking one costs somebody a navigation they rely on. Pick up, move, drop is also what the
+accessible drag-and-drop implementations converged on, which makes it the pattern most likely
+to be already known.
+
+```
+M               pick the selection up — and, holding it, put it down
+Arrow keys      while holding, move by a quarter of a seat's spacing
+Shift+Arrow     while holding, move by a twentieth
+Enter / Space   put it down
+Esc             holding something, put it back exactly where it was
+                holding nothing, let go of the selection
+```
+
+Four rules make that vocabulary safe to be in:
+
+- **The arrows keep meaning navigation until something is in hand.** A map that nudged on a bare
+  arrow would have no way left to move around itself.
+- **The same key gets you out of the mode it got you into**, which is the thing modes get wrong.
+- **`M` picks up the selection, not the focused seat.** Focus and selection are different things
+  on a keyboard in a way they never are under a pointer: somebody arrows across the map to read
+  a seat's label without meaning to give up the twenty they had chosen.
+- **Snapping is never off**, on either lattice — exact coordinates are what makes two seats
+  stacked on each other detectable at all. Putting something back snaps on the *fine* lattice,
+  which the quarter lattice is a subset of, so a finely-placed seat survives the round trip
+  instead of being dragged a fifth of a pitch on the way home.
+
+**Being in a mode is said in words, where everybody can read them.** The editor carries one
+polite live region under the help text — `Moving 3 seats…`, `Moved 0.25 down.`, `Put back.` —
+and it is *visible*, for the same reason the picker's list is a view rather than an alternative.
+A pointer says "you are in the middle of something" by holding a button down; a keyboard has
+nothing to hold, and a mode nobody can see is one people leave by guessing. It keeps its height
+when empty so the map does not jump the first time anything is picked up.
+
+**A landmark is moved from its button in the panel, by the same keys.** The map's listbox holds
+seats, so the landmark list is the only place a landmark is reachable without a pointer — and
+one vocabulary in two places is better than a second vocabulary invented for the second place.
+
 **The picker offers a list as well as a map, to everybody.** A picture is not a way to choose a
 seat if you cannot see one, and a segregated "accessible version" is a second thing to keep
 correct. The list is the same room in the same order — rows top to bottom, seats left to right,
@@ -870,12 +910,11 @@ Honest list of what this document does not yet decide.
   unspecified and will be settled when the component is built.
 - **No print styles.** A buyer printing a ticket gets the browser's default, which is not a decision
   anybody made.
-- **The seat map editor is still pointer-only.** The buyer's picker takes the keyboard; the
-  editor's marquee selection, drag-to-move and landmark placement do not, and nudging a
-  selection with the arrows is probably better than dragging it rather than merely equal. The
-  order was deliberate — somebody who cannot use a mouse must be able to *buy a ticket* first —
-  but the editor is a screen the organization's own staff are made to use, which is not a
-  reason to leave it.
+- **The seat map editor has no keyboard equivalent of the marquee.** Seats are chosen one at a
+  time with `Shift`+`Enter`, which is twenty-four presses for a row and two hundred for a block
+  — where a pointer draws one box. Selecting a row, a block or a tier in a single action is the
+  missing verb, and it is a selection vocabulary rather than a movement one, so it wants
+  designing rather than adding.
 - **No specification for the platform-admin screens.** They are internal, low-traffic, and will
   inherit the manager shell until they have enough surface to deserve their own rules.
 - **Only the auth slice has been built against this document.** The tokens, the primitives and

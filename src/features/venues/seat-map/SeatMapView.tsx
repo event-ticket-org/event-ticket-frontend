@@ -71,9 +71,17 @@ export type SeatMapViewProps<S extends SeatMapSeat> = {
     selected?: (seat: S, index: number) => boolean
     /** False for a seat nobody can choose. It stays reachable, and says why in its label. */
     enabled?: (seat: S, index: number) => boolean
-    onActivate: (seat: S, index: number) => void
+    onActivate: (seat: S, index: number, event: React.KeyboardEvent) => void
     /** Told where focus went, so a zoomed caller can bring it into view. */
     onFocus?: (seat: S, index: number) => void
+    /**
+     * First refusal on every key, for a caller with a vocabulary of its own.
+     *
+     * Returning true stops the default handling, which is how the editor takes the arrows
+     * while a selection is being moved: this component knows about seats and rows and has no
+     * business knowing what "moving" is.
+     */
+    onKeyDown?: (event: React.KeyboardEvent, index: number) => boolean
   }
 }
 
@@ -254,11 +262,15 @@ export function SeatMapView<S extends SeatMapSeat>({
                 )
                 const [, from] = found ?? [undefined, roving]
 
+                if (keyboard.onKeyDown?.(event, from)) {
+                  return
+                }
+
                 if (event.key === 'Enter' || event.key === ' ') {
                   const seat = map.seats[from]
                   if (seat && (keyboard.enabled?.(seat, from) ?? true)) {
                     event.preventDefault()
-                    keyboard.onActivate(seat, from)
+                    keyboard.onActivate(seat, from, event)
                   }
                   return
                 }
