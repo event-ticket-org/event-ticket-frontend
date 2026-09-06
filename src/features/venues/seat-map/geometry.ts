@@ -135,6 +135,29 @@ export function panBounds(bounds: Bounds, dx: number, dy: number): Bounds {
   }
 }
 
+/**
+ * The same view, moved just far enough that a point is inside it.
+ *
+ * For keyboard navigation on a zoomed map: arrowing to a seat that is off screen moves focus
+ * to something nobody can see, which is worse than no navigation at all - the person is now
+ * somewhere in a room they cannot look at. Panning by the shortfall rather than re-centring
+ * keeps the surroundings the person was just looking at on screen.
+ */
+export function boundsAround(bounds: Bounds, point: { x: number; y: number },
+                             padding: number): Bounds {
+  const dx = point.x < bounds.minX + padding
+    ? point.x - (bounds.minX + padding)
+    : point.x > bounds.maxX - padding
+      ? point.x - (bounds.maxX - padding)
+      : 0
+  const dy = point.y < bounds.minY + padding
+    ? point.y - (bounds.minY + padding)
+    : point.y > bounds.maxY - padding
+      ? point.y - (bounds.maxY - padding)
+      : 0
+  return dx === 0 && dy === 0 ? bounds : panBounds(bounds, dx, dy)
+}
+
 export type Rect = { x: number; y: number; width: number; height: number }
 
 /** Normalises a drag into a rectangle, so a marquee works in all four directions. */

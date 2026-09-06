@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { SeatMapSeat } from '~/api/types'
 import {
+  boundsAround,
   boundsOf,
   panBounds,
   rectBetween,
@@ -292,5 +293,29 @@ describe('the fine lattice', () => {
       x: 2,
       y: 1,
     })
+  })
+})
+
+describe('keeping a point in view', () => {
+  const view = { minX: 0, minY: 0, maxX: 10, maxY: 10 }
+
+  it('leaves the view alone when the point is already inside it', () => {
+    expect(boundsAround(view, { x: 5, y: 5 }, 1)).toBe(view)
+  })
+
+  /** By the shortfall, not re-centred: the surroundings somebody was just looking at stay on
+      screen, which is most of what makes a map a map. */
+  it('moves by exactly what is missing', () => {
+    expect(boundsAround(view, { x: 12, y: 5 }, 1)).toEqual({
+      minX: 3, maxX: 13, minY: 0, maxY: 10,
+    })
+    expect(boundsAround(view, { x: 5, y: -2 }, 1)).toEqual({
+      minX: 0, maxX: 10, minY: -3, maxY: 7,
+    })
+  })
+
+  it('keeps the padding, so a seat is never flush against the edge', () => {
+    const moved = boundsAround(view, { x: 10, y: 5 }, 2)
+    expect(moved.maxX - 10).toBe(2)
   })
 })

@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { MapElement, SeatMap, SeatMapSeat } from '~/api/types'
 import { cx } from '~/shared/ui'
 import { SEAT_RADIUS, elementSize, viewBoxOf, type Bounds, type Rect } from './geometry'
+import { directionFor, rowsOf, step } from './seat-navigation'
 
 /**
  * One renderer, three jobs: the editor here, the venue page's read-only view, and the buyer's
@@ -56,6 +57,24 @@ export type SeatMapViewProps<S extends SeatMapSeat> = {
   onZoom?: (point: { x: number; y: number }, factor: number) => void
   className?: string
   ariaLabel: string
+  /**
+   * Supplied when the map is something to choose from rather than a picture of one.
+   *
+   * Without it the `<svg>` stays a single labelled image: correct for the venue page's
+   * read-only view, and useless anywhere a person has to pick a seat. With it the seats become
+   * a listbox with one tab stop and spatial arrow keys - see `seat-navigation.ts` for why the
+   * arrows follow the room rather than the array.
+   */
+  keyboard?: {
+    /** Everything about a seat that somebody who cannot see the map needs, in one string. */
+    label: (seat: S, index: number) => string
+    selected?: (seat: S, index: number) => boolean
+    /** False for a seat nobody can choose. It stays reachable, and says why in its label. */
+    enabled?: (seat: S, index: number) => boolean
+    onActivate: (seat: S, index: number) => void
+    /** Told where focus went, so a zoomed caller can bring it into view. */
+    onFocus?: (seat: S, index: number) => void
+  }
 }
 
 export function SeatMapView<S extends SeatMapSeat>({
@@ -75,8 +94,49 @@ export function SeatMapView<S extends SeatMapSeat>({
   onZoom,
   className,
   ariaLabel,
+  keyboard,
 }: SeatMapViewProps<S>) {
   const svg = useRef<SVGSVGElement>(null)
+
+  /**
+   * The one seat in the tab order (the roving tabindex pattern). Tab reaches the map once and
+   * the arrows move within it; two thousand tab stops would be a worse map than no map.
+   *
+   * It starts on the first seat somebody can actually choose, because landing on a sold seat
+   * and having to hunt for a free one is the map's whole failure mode repeated by keyboard.
+   */
+  const [focused, setFocused] = useState(0)
+  const rows = useMemo(
+    () => (keyboard ? rowsOf(map.seats) : []),
+    [keyboard, map.seats],
+  )
+  const firstChoosable = useMemo(() => {
+    if (!keyboard?.enabled) {
+      return 0
+    }
+    const index = map.seats.findIndex((seat, at) => keyboard.enabled!(seat, at))
+    return index === -1 ? 0 : index
+  }, [keyboard, map.seats])
+
+  // Clamped rather than reset: a map that shrinks under a held focus should keep it somewhere
+  // real, and a caller re-rendering with new availability must not throw the position away.
+  const roving = Math.min(focused || firstChoosable, Math.max(map.seats.length - 1, 0))
+
+  const moveTo = (index: number) => {
+    if (index === roving) {
+      return
+    }
+    setFocused(index)
+    const seat = map.seats[index]
+    if (seat) {
+      keyboard?.onFocus?.(seat, index)
+    }
+    // Imperative, because the element that should hold focus is the one React is about to
+    // render - and asking for it after the paint is a frame of focus on nothing.
+    requestAnimationFrame(() => {
+      svg.current?.querySelector<SVGCircleElement>(`[data-seat="${index}"]`)?.focus()
+    })
+  }
 
   /**
    * Screen to map coordinates, through the browser's own matrix.
@@ -137,8 +197,10 @@ export function SeatMapView<S extends SeatMapSeat>({
   return (
     <svg
       ref={svg}
-      role="img"
-      aria-label={ariaLabel}
+      // A picture of a room when nobody can choose from it, and nothing at all when they can:
+      // an image cannot contain options, and the listbox below carries the name instead.
+      role={keyboard ? 'presentation' : 'img'}
+      aria-label={keyboard ? undefined : ariaLabel}
       viewBox={viewBoxOf(bounds)}
       preserveAspectRatio="xMidYMid meet"
       className={cx('touch-pan-y select-none', className)}
@@ -174,20 +236,74 @@ export function SeatMapView<S extends SeatMapSeat>({
         />
       ))}
 
-      {map.seats.map((seat, index) => (
-        <circle
-          key={index}
-          data-seat={index}
-          cx={seat.x}
-          cy={seat.y}
-          r={SEAT_RADIUS}
-          // Stroke width is in map units, so it thins as you zoom out and the map stays
-          // legible instead of turning into a field of outlines.
-          strokeWidth={0.08}
-          fill={seatFill?.(seat, index)}
-          className={seatClass(seat, index)}
-        />
-      ))}
+      <g
+        role={keyboard ? 'listbox' : undefined}
+        aria-multiselectable={keyboard ? true : undefined}
+        aria-label={keyboard ? ariaLabel : undefined}
+        // One handler for the whole map rather than one per seat: keydown bubbles, and two
+        // thousand listeners is the thing this component is built not to do.
+        onKeyDown={
+          keyboard
+            ? (event) => {
+                // The seat that actually has focus, read off the element, not the state that
+                // mirrors it. Focus also arrives by click and by Tab returning to the map, and
+                // in the same tick as either of those the mirrored index is still the old one -
+                // which chooses whichever seat was last arrowed to instead of this one.
+                const found = seatAt(
+                  (event.target as Element).closest('[data-seat]')?.getAttribute('data-seat'),
+                )
+                const [, from] = found ?? [undefined, roving]
+
+                if (event.key === 'Enter' || event.key === ' ') {
+                  const seat = map.seats[from]
+                  if (seat && (keyboard.enabled?.(seat, from) ?? true)) {
+                    event.preventDefault()
+                    keyboard.onActivate(seat, from)
+                  }
+                  return
+                }
+                const direction = event.ctrlKey || event.metaKey
+                  ? (event.key === 'Home' ? 'first' : event.key === 'End' ? 'last' : undefined)
+                  : directionFor(event.key)
+                if (!direction) {
+                  return
+                }
+                // Only once the map has claimed the key. An arrow the map ignores is an arrow
+                // that still scrolls the page, which is what somebody expects it to do.
+                event.preventDefault()
+                moveTo(step(map.seats, rows, from, direction))
+              }
+            : undefined
+        }
+      >
+        {map.seats.map((seat, index) => (
+          <circle
+            key={index}
+            data-seat={index}
+            cx={seat.x}
+            cy={seat.y}
+            r={SEAT_RADIUS}
+            // Stroke width is in map units, so it thins as you zoom out and the map stays
+            // legible instead of turning into a field of outlines.
+            strokeWidth={0.08}
+            fill={seatFill?.(seat, index)}
+            className={cx(
+              seatClass(seat, index),
+              // The ring is drawn below, in map units. An outline on an SVG shape is
+              // unreliable across browsers and would not scale with the map if it were.
+              keyboard && 'outline-none',
+            )}
+            role={keyboard ? 'option' : undefined}
+            tabIndex={keyboard ? (index === roving ? 0 : -1) : undefined}
+            aria-label={keyboard?.label(seat, index)}
+            aria-selected={keyboard ? (keyboard.selected?.(seat, index) ?? false) : undefined}
+            aria-disabled={
+              keyboard && keyboard.enabled && !keyboard.enabled(seat, index) ? true : undefined
+            }
+            onFocus={keyboard ? () => setFocused(index) : undefined}
+          />
+        ))}
+      </g>
 
       {labelledSeats &&
         map.seats.map((seat, index) => (
@@ -202,6 +318,31 @@ export function SeatMapView<S extends SeatMapSeat>({
             {seat.label}
           </text>
         ))}
+
+      {/* Drawn, not outlined: in map units it scales with the zoom and it renders the same in
+          every browser, neither of which is true of an outline on an SVG shape. Two rings,
+          because {colors.info} on a tier fill of similar lightness is a ring nobody sees -
+          the ink one underneath is what guarantees it against any of the six. */}
+      {keyboard && map.seats[roving] && (
+        <g className="pointer-events-none">
+          <circle
+            cx={map.seats[roving]!.x}
+            cy={map.seats[roving]!.y}
+            r={SEAT_RADIUS + 0.26}
+            fill="none"
+            className="stroke-ink"
+            strokeWidth={0.2}
+          />
+          <circle
+            cx={map.seats[roving]!.x}
+            cy={map.seats[roving]!.y}
+            r={SEAT_RADIUS + 0.26}
+            fill="none"
+            className="stroke-info"
+            strokeWidth={0.12}
+          />
+        </g>
+      )}
 
       {marquee && (
         <rect

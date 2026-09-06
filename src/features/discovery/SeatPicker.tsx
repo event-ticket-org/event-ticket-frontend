@@ -3,11 +3,13 @@ import type { EventSeat, EventSeatMap, PricingTier } from '~/api/types'
 import { formatMoney } from '~/shared/format'
 import { Button, Segment, Segmented, cx } from '~/shared/ui'
 import {
+  boundsAround,
   boundsOf,
   padBounds,
   zoomBounds,
   type Bounds,
 } from '~/features/venues/seat-map/geometry'
+import { rowNameOf, rowsOf } from '~/features/venues/seat-map/seat-navigation'
 import { SeatMapView } from '~/features/venues/seat-map/SeatMapView'
 
 const TIER_FILLS = [
@@ -68,6 +70,7 @@ export function SeatPicker({
   onClear: () => void
 }) {
   const [view, setView] = useState<Bounds | null>(null)
+  const [asList, setAsList] = useState(false)
 
   const contentBounds = useMemo(() => {
     const bounds = boundsOf(map)
@@ -128,6 +131,34 @@ export function SeatPicker({
 
   const available = map.seats.filter((seat) => seat.availability === 'AVAILABLE').length
 
+  const isChoosable = (seat: EventSeat) =>
+    seat.availability === 'AVAILABLE' || selected.includes(seat.id)
+
+  /**
+   * Everything about a seat that somebody who cannot see the map needs, in one string.
+   *
+   * The price is in it rather than only in the legend, because a legend is a second place to
+   * go and this is read one seat at a time. The state is a word, which is the same reason the
+   * map draws a hatch and a strike rather than relying on colour.
+   */
+  const describe = (seat: EventSeat) => {
+    const price = priceOf(seat.tierName)
+    const money = price ? `, ${formatMoney(price)}` : ''
+    if (selected.includes(seat.id)) {
+      return `${seat.label}, ${seat.tierName}${money}, chosen`
+    }
+    switch (seat.availability) {
+      case 'AVAILABLE':
+        return `${seat.label}, ${seat.tierName}${money}, free`
+      case 'HELD':
+        return `${seat.label}, ${seat.tierName}, being bought by somebody else`
+      case 'SOLD':
+        return `${seat.label}, ${seat.tierName}, sold`
+      case 'NOT_FOR_SALE':
+        return `${seat.label}, not for sale`
+    }
+  }
+
   return (
     <div className="relative space-y-4">
       <SeatPatternDefs />
@@ -136,12 +167,27 @@ export function SeatPicker({
         <p className="font-numeric text-numeric text-ink-soft">
           {available} of {map.seats.length} seats free
         </p>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {selected.length > 0 && (
             <Button variant="ghost" className="w-auto" onClick={onClear}>
               Clear selection
             </Button>
           )}
+          {/* A map is a picture, and a picture is not a way to choose a seat if you cannot
+              see one. The list is the same information in the order of the room - and it is
+              offered to everybody rather than hidden behind assistive technology, because a
+              sighted person hunting for two seats together in row F wants it too. */}
+          <Segmented label="How to choose">
+            <Segment selected={!asList} onClick={() => setAsList(false)}>
+              Map
+            </Segment>
+            <Segment selected={asList} onClick={() => setAsList(true)}>
+              List
+            </Segment>
+          </Segmented>
+          {/* Only with the map. Zoom controls beside a list are three buttons that do
+              nothing, and on a 390px screen they were pushing the row off the edge. */}
+          {!asList && (
           <Segmented label="Seat map view">
             <Segment
               aria-label="Zoom out"
@@ -163,9 +209,19 @@ export function SeatPicker({
               Fit
             </Segment>
           </Segmented>
+          )}
         </div>
       </div>
 
+      {asList ? (
+        <SeatList
+          map={map}
+          describe={describe}
+          choosable={isChoosable}
+          selected={selected}
+          onToggle={onToggle}
+        />
+      ) : (
       <div className="border-2 border-ink bg-paper">
         <SeatMapView
           map={map}
@@ -176,13 +232,24 @@ export function SeatPicker({
           ariaLabel="Choose your seats"
           className="h-[28rem] w-full sm:h-[32rem]"
           onSeatPointerDown={(seat) => {
-            if (seat.availability === 'AVAILABLE' || selected.includes(seat.id)) {
+            if (isChoosable(seat)) {
               onToggle(seat.id)
             }
           }}
           onZoom={(point, factor) => setView(zoomBounds(bounds, factor, point, contentBounds))}
+          keyboard={{
+            label: describe,
+            selected: (seat) => selected.includes(seat.id),
+            enabled: isChoosable,
+            onActivate: (seat) => onToggle(seat.id),
+            // Arrowing to a seat off the edge of a zoomed view moves focus to something
+            // nobody can see, which is worse than not moving at all.
+            onFocus: (seat) => setView((current) =>
+              current ? boundsAround(current, seat, 2) : current),
+          }}
         />
       </div>
+      )}
 
       <ul className="flex flex-wrap items-center gap-x-6 gap-y-3">
         {tierOrder.map((name) => {
@@ -205,6 +272,86 @@ export function SeatPicker({
           Sold
         </li>
       </ul>
+    </div>
+  )
+}
+
+/**
+ * The map, linearised into the order of the room.
+ *
+ * Rows top to bottom, seats left to right within each, which is the same order the arrow keys
+ * walk - so the two views describe one room rather than two. Unavailable seats are listed and
+ * disabled rather than dropped: a gap where A3 should be is how somebody reading this knows
+ * that A2 and A4 are not next to each other.
+ */
+function SeatList({
+  map,
+  describe,
+  choosable,
+  selected,
+  onToggle,
+}: {
+  map: EventSeatMap
+  describe: (seat: EventSeat) => string
+  choosable: (seat: EventSeat) => boolean
+  selected: string[]
+  onToggle: (seatId: string) => void
+}) {
+  const rows = useMemo(() => rowsOf(map.seats), [map.seats])
+
+  if (rows.length === 0) {
+    return <p className="text-body text-ink-soft">This event has no seats yet.</p>
+  }
+
+  return (
+    <div className="space-y-6 border-2 border-ink bg-paper p-4">
+      {rows.map((row, ordinal) => {
+        const seats = row.map((index) => map.seats[index]!)
+        const free = seats.filter(choosable).length
+        return (
+          <section key={ordinal} aria-labelledby={`row-${ordinal}`}>
+            <h3 id={`row-${ordinal}`} className="text-label uppercase">
+              {rowNameOf(seats.map((seat) => seat.label), ordinal + 1)}
+              <span className="ml-3 text-ink-soft">
+                {free} of {seats.length} free
+              </span>
+            </h3>
+            <ul className="mt-2 flex flex-wrap gap-2">
+              {seats.map((seat) => {
+                const chosen = selected.includes(seat.id)
+                const free = choosable(seat)
+                return (
+                  <li key={seat.id}>
+                    <button
+                      type="button"
+                      disabled={!free}
+                      aria-pressed={chosen}
+                      // The full description, not the label: the visible text is a seat
+                      // number and on its own it says nothing about price or availability.
+                      aria-label={describe(seat)}
+                      onClick={() => onToggle(seat.id)}
+                      className={cx(
+                        'min-h-11 min-w-11 border-2 border-ink px-3 py-2 font-numeric text-numeric',
+                        'transition-[transform,box-shadow] duration-[60ms] ease-linear',
+                        'motion-reduce:transition-none',
+                        chosen
+                          ? 'bg-info text-ink shadow-raised'
+                          : free
+                            ? 'bg-paper text-ink shadow-raised hover:shadow-hover active:translate-x-1 active:translate-y-1 active:shadow-none'
+                            // Elevation is the affordance, here as everywhere: a seat nobody
+                            // can take loses its shadow and keeps its contrast.
+                            : 'cursor-not-allowed bg-paper-sunk text-ink shadow-none',
+                      )}
+                    >
+                      {seat.label}
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
+        )
+      })}
     </div>
   )
 }
