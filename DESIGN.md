@@ -300,9 +300,19 @@ elevation.raised-ghost   4px 4px 0 {colors.paper}, 4px 4px 0 2px {colors.ink}
 elevation.hover-ghost    6px 6px 0 {colors.paper}, 6px 6px 0 2px {colors.ink}
 ```
 
-This is the only place in the system where a token exists because of how something renders
-rather than because of what it means. It was found by looking at the built page, not by
-reading the CSS — the computed style was exactly what this document asked for.
+**On the scanner ground, elevation is drawn in `{colors.chalk}`.** It is the same problem as
+`raised-ghost` with the grounds swapped: an ink shadow on `{colors.night}` is ink on ink, so a
+control on the scanner ground would have no depth at all — and depth is the affordance that says
+a thing can be pressed.
+
+```
+elevation.raised-chalk   4px 4px 0 {colors.chalk}
+elevation.hover-chalk    6px 6px 0 {colors.chalk}
+```
+
+These two are the only places in the system where a token exists because of how something
+renders rather than because of what it means. The first was found by looking at the built page,
+not by reading the CSS — the computed style was exactly what this document asked for.
 
 **Borders are the primary elevation system; shadow is secondary.**
 
@@ -314,6 +324,11 @@ border.heavy     3px solid {colors.ink}   Modals, the scan verdict, focused inpu
 
 **An element with a shadow must have a border.** A shadow with no border is a soft-UI artefact and
 looks like a mistake in this system, because it is one.
+
+**In the scanner shell every border is `{colors.chalk}` at the same widths.** The rule is that a
+border separates a thing from its ground; on `{colors.night}` an ink border separates nothing.
+The two verdict fields are the exception — they are `{colors.go}` and `{colors.stop}`, so their
+frame is ink, as everywhere else.
 
 ### Press
 
@@ -390,6 +405,15 @@ same thing in the same space and survives `prefers-reduced-motion`.
 Padding `{space.3}` / `{space.6}`. Minimum height 44px, and see [Responsive Behavior](#responsive-behavior)
 for the scanner's 56px.
 
+**In the scanner shell the palette inverts and the geometry does not.** One variant, because at a
+gate there is never more than one thing to press:
+
+```
+scanner   {colors.night-raised} fill · {colors.chalk} text · 2px {colors.chalk} border
+          {elevation.raised-chalk} · 56px minimum height · full width
+disabled  no shadow, everything else unchanged — elevation is still the whole signal
+```
+
 ### Field and Input — manager, public
 
 Label above the input, `{type.label}`, never a placeholder standing in for a label — a placeholder
@@ -405,6 +429,10 @@ disabled  {colors.paper-sunk} fill, {colors.ink} text
 
 Validation messages sit below the field and are never a tooltip, a title attribute, or a colour
 change alone.
+
+The scanner has exactly one input — the typed Ticket Code, for when a camera will not read a
+cracked screen — and it inverts the same way the button does: `{colors.night-raised}` fill,
+`{colors.chalk}` text, 2px `{colors.chalk}` border, 56px minimum height, `{type.code}`.
 
 ### Table — manager only
 
@@ -603,19 +631,51 @@ REFUSE   {colors.stop} field · {colors.ink} text · a 12px-stroke cross
          the meaning when colour does not
 ```
 
-One word at `{type.verdict}`. Below it, at `{type.heading}`: the seat label and the Event title.
-Below that, at `{type.body}`, the reason in the backend's own words — `Already redeemed at 19:42`,
-`Wrong event`, `Doors are not open yet`, `Ticket void`.
+One word at `{type.verdict}`. Below it the seat label at `{type.numeric-lg}` — it is both a number
+a person compares and the thing that directs them to a seat, so it takes the numeric face and the
+larger size — and the Event title at `{type.heading}`. Below that, at `{type.body}`, the reason in
+the backend's own words — `This ticket has already been used.`, `This ticket is for a different
+event.`, `Doors are not open yet.`
 
 Both outcomes vibrate, with different patterns: a single 40ms pulse for ADMIT, three 80ms pulses
 for REFUSE. Distinguishable in a pocket, and the only channel that works when the phone is not
 being looked at.
 
-**The verdict holds until the operator dismisses it, or for 4 seconds, whichever is later.** Never
-auto-advance to the next scan before the verdict can be read — a scanner that clears itself is a
-scanner that admitted somebody nobody checked.
+**The verdict holds until the operator dismisses it, or for 4 seconds, whichever is later.** It
+never auto-advances: with no dismissal it stays up indefinitely, and a dismissal in the first four
+seconds is honoured at the four-second mark rather than immediately. A scanner that clears itself
+is a scanner that admitted somebody nobody checked, and a queue is exactly the thing that makes an
+operator tap through a screen they have not read.
 
 Colour-blind operators read the word, the shape and the frame. Any one of the three is sufficient.
+
+### ScanFailure — scanner only
+
+A scan that never reached the server has no outcome, and must not borrow the shape of one.
+requirements/007 criterion 11: the scanner never admits optimistically, so an unreachable server
+is shown, not retried silently and not guessed at.
+
+```
+{colors.night} ground · the word FAILED at {type.verdict} in {colors.hold}
+the reason at {type.body} in {colors.chalk} · the scanner button, labelled Try again
+```
+
+Neither field colour, so it can be mistaken for neither verdict, and large enough to be read at
+the same distance. `{colors.hold}` because that is what it is: nobody has been admitted and
+nobody has been refused, and the person at the door is still waiting.
+
+A scan is also given a deadline, because a request that hangs never fails: it waits, and then
+admits somebody minutes later when the signal returns, long after the operator gave up. Ten
+seconds, against a 500 ms budget — not a deadline anybody meets, but the point past which no
+answer beats a late one.
+
+### ScanWorking — scanner only
+
+The same `{colors.night}` ground while a scan is in the air, with `Checking…` at `{type.title}`
+and no control. Deliberately **not** verdict-sized: it is the one screen in the scanner that
+must never be mistaken for an answer. At 500 ms nobody reads it; the operator sees it only when
+something has gone slow, and then it is the difference between a scanner that is working and a
+scanner that ignored them.
 
 ---
 
