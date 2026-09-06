@@ -5,6 +5,7 @@ import { formatMoney } from '~/shared/format'
 import { Button, Card, MoneyTotal, Problem, StatusChip } from '~/shared/ui'
 import { HoldCountdown } from './HoldCountdown'
 import { NextAction } from './NextAction'
+import { paymentProvider } from './payment-provider'
 import { useAbandonOrder, useOrder, useStartPayment } from './order-hooks'
 
 export function OrderPage() {
@@ -138,20 +139,28 @@ function Pay({ orderId, expired }: { orderId: string; expired: boolean }) {
             variant="ghost"
             className="w-auto px-0"
             pending={startPayment.isPending}
-            onClick={() => startPayment.mutate('FAKE')}
+            onClick={() => startPayment.mutate(paymentProvider)}
           >
             Start again with a different payment
           </Button>
         </>
       ) : (
         <Card>
+          {/*
+            Says what is true whoever answers, rather than naming a flow. This read "Pay by
+            bank transfer. We will show you a QR code to scan." - which was accurate for the
+            only provider that existed and became a lie the day a second one did. What a buyer
+            needs before pressing this is not which company takes the money; it is that the
+            seats are theirs until the clock runs out and that nothing has been charged yet.
+          */}
           <p className="max-w-[68ch] text-body">
-            Pay by bank transfer. We will show you a QR code to scan.
+            Your seats are held until the timer runs out. Nothing is charged until you finish
+            paying, and these tickets are yours only once the payment clears.
           </p>
           <Button
             className="mt-4 w-auto"
             pending={startPayment.isPending}
-            onClick={() => startPayment.mutate('FAKE')}
+            onClick={() => startPayment.mutate(paymentProvider)}
           >
             Pay now
           </Button>

@@ -9,3 +9,7 @@ src/api/schema.d.ts
 
 # Local Vite cache
 .vite/
+
+# Local configuration, per machine. `VITE_PAYMENT_PROVIDER` lives here so a clone with no
+# Stripe account gets the fake and a machine with one does not have to remember a flag.
+.env.local
