@@ -61,9 +61,16 @@ export function EventOrdersPage() {
               ? 'One order is holding money for seats it never got.'
               : `${owed} orders are holding money for seats they never got.`}
           </p>
+          {/*
+            No longer names a cause. There are two ways into this state - a payment that landed
+            after the holds lapsed, and a refund the provider reported settled and then reversed
+            - and this banner asserted the first, which was simply wrong for an Order that got
+            here the other way. Each row below says which, and says it with the provider's own
+            words.
+          */}
           <p className="mt-1 max-w-[68ch] text-body">
-            The payment arrived after the seats had gone back on sale. Nothing about it is the
-            buyer&rsquo;s fault, and refunding is the way out.
+            Nothing about it is the buyer&rsquo;s fault, and refunding is the way out. Each
+            order says how it got here.
           </p>
         </div>
       )}
@@ -137,7 +144,11 @@ function OrderRow({
   // The honest fix is refund state on the Order in the contract. That is a knowledge base
   // change, and this list is read by one person at a time.
   const hasMoney = order.status === 'PAID' || order.refundRequired === true
-  const settled = order.status === 'REFUNDED'
+  // REFUNDED used to be the end of the story. A provider that takes a settlement back
+  // (requirements/008 criterion 11) leaves an Order reading REFUNDED and holding the money
+  // again - so what closes this row is not the status, it is whether anything is still owed.
+  // Reading the status alone put a flag on the row and no way to act on it.
+  const settled = order.status === 'REFUNDED' && order.refundRequired !== true
   const history = useOrderRefunds(order.id, hasMoney || settled)
   const refunds = history.data ?? []
 
