@@ -555,6 +555,43 @@ generator produced. The Seat Map is saved as one atomic document, so the editor 
 until Save and guards navigation while dirty. Label uniqueness is validated live, since the server
 rejects the whole document over one duplicate.
 
+**A seat map is chosen with the keyboard, and the arrows follow the room.** A seat map is a
+picture of a building, so the only navigation that makes sense inside one is spatial: left and
+right along a row, up and down between rows. Tab order would walk the array — the order the
+seats were generated in, which means nothing to somebody sitting in the room — and at two
+thousand seats "press Tab four hundred times" is not access.
+
+```
+Tab             reaches the map once. One tab stop, roving to the focused seat.
+Arrow ← →       the next seat in this row
+Arrow ↑ ↓       the nearest seat across, in the row above or below
+Home / End      the ends of this row
+Ctrl+Home/End   the first and last seat in the map
+Enter / Space   choose or unchoose
+```
+
+Up and down land on the seat **nearest in x**, not on the same position along the next row.
+Rows are not the same length — a balcony is narrower than the stalls — and counting along sends
+somebody sideways across the room, which is the one thing a spatial map exists to prevent.
+
+The map claims those keys and no others. `PageUp` and `PageDown` belong to the page scrolling
+behind it, for the same reason the wheel needs a modifier: a component embedded in a document
+must not swallow the document's own navigation.
+
+**The seat map draws its focus ring instead of outlining it.** The one exception to
+[Focus](#focus), and not a removal — an `outline` on an SVG shape renders inconsistently across
+browsers and would not scale with the zoom if it did. Two concentric rings in map units at
+`{colors.ink}` 0.2 and `{colors.info}` 0.12: the ink one underneath is what guarantees the ring
+against a tier fill of similar lightness, which `{colors.info}` alone does not.
+
+**The picker offers a list as well as a map, to everybody.** A picture is not a way to choose a
+seat if you cannot see one, and a segregated "accessible version" is a second thing to keep
+correct. The list is the same room in the same order — rows top to bottom, seats left to right,
+named the way the venue names them (`A1, A2, A3` is Row A) — with unavailable seats present and
+disabled rather than dropped, because a gap where `A3` should be is how a person reading it knows
+`A2` and `A4` are not next to each other. Every seat carries its tier, its price and its state in
+one accessible name; the legend is a second place to look, and this is read one seat at a time.
+
 **A Seat Map is never locked, and that is the thing organizers get wrong.** Publishing *copies*
 the map into the Event, and it is that copy which is frozen (`event_seat_frozen`); the Venue's own
 map stays editable forever. So an organizer editing a Venue that has a live Event needs to be told
@@ -833,6 +870,12 @@ Honest list of what this document does not yet decide.
   unspecified and will be settled when the component is built.
 - **No print styles.** A buyer printing a ticket gets the browser's default, which is not a decision
   anybody made.
+- **The seat map editor is still pointer-only.** The buyer's picker takes the keyboard; the
+  editor's marquee selection, drag-to-move and landmark placement do not, and nudging a
+  selection with the arrows is probably better than dragging it rather than merely equal. The
+  order was deliberate — somebody who cannot use a mouse must be able to *buy a ticket* first —
+  but the editor is a screen the organization's own staff are made to use, which is not a
+  reason to leave it.
 - **No specification for the platform-admin screens.** They are internal, low-traffic, and will
   inherit the manager shell until they have enough surface to deserve their own rules.
 - **Only the auth slice has been built against this document.** The tokens, the primitives and

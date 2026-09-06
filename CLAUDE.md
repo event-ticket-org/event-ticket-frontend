@@ -86,6 +86,18 @@ that no longer exists, and everything inside loses its spacing silently. It cost
 buttons painted their shadows into the panel below. Give a conditional wrapper its own spacing
 and make it a real block (`hidden space-y-4 md:block`).
 
+**The map is a listbox, and the arrows are geometry.** Seats carry `role="option"` under one
+`role="listbox"` with a roving tabindex, so the map is one tab stop and the arrows move within
+it. Which seat an arrow reaches is computed from coordinates — rows are found by clustering `y`,
+and up/down lands on the nearest seat in `x` rather than the same position along, because rows
+are not the same length and counting along sends somebody sideways across the room. That is in
+`seat-navigation.ts` and it is unit tested; the component only turns key presses into calls.
+
+**The picker's list is not an accessible alternative, it is the second view.** Offered to
+everybody in the same Segmented control as the zoom, because a sighted person hunting for two
+seats together in row F wants it too, and a version only screen-reader users see is a version
+that quietly rots.
+
 **Measure the painted extent, not the border box.** `getBoundingClientRect` excludes
 `box-shadow`, and in this system every raised control paints 4–6px past its box. Two elements
 can report a clean gap and still overlap on screen.
