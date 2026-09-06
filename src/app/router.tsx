@@ -19,6 +19,7 @@ import { CheckoutPage } from '~/features/checkout/CheckoutPage'
 import { OrderPage } from '~/features/checkout/OrderPage'
 import { OrdersPage } from '~/features/tickets/OrdersPage'
 import { TicketsPage } from '~/features/tickets/TicketsPage'
+import { ScannerPage } from '~/features/scanner/ScannerPage'
 import { RegisterPage, SignInPage, VerifyEmailPage } from '~/features/auth/AuthPages'
 import { NotFoundPage, PlaceholderPage } from './pages'
 
@@ -86,7 +87,7 @@ export const router = createBrowserRouter([
       {
         element: <ScannerLayout />,
         children: [
-          { path: '/scan/:eventId', element: <PlaceholderPage what="The door scanner" slice="4" /> },
+          { path: '/scan/:eventId', element: <ScannerPage /> },
         ],
       },
     ],

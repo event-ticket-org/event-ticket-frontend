@@ -127,6 +127,13 @@ them; replacing them with prose of our own makes them worse and lets the two dri
 — the backend would be right to reject the losers, and the user would be signed out by their own
 application. `session.refreshOnce` is what prevents it and `client.test.ts` proves it.
 
+**A mutation that must not wait is `networkMode: 'always'`.** TanStack's default is `online`:
+with the browser reporting no connection it does not fail a mutation, it *pauses* it — `isPending`
+stays true, the request is never sent, and it runs when the network comes back. The scanner sat on
+"Checking…" while an operator waited, and then admitted somebody minutes later — exactly the
+optimistic admission requirements/007 criterion 11 forbids. Anything a person is standing there
+waiting for attempts and fails instead.
+
 **Ask the server what a person may do, not the token.** `/me` lists live Memberships; a token
 says which Organization is active. A removed member holds a valid token for up to fifteen
 minutes (ADR-0005).
@@ -149,3 +156,20 @@ tests earn their place when a component has a decision in it, and most do not.
 
 The seat map and the scanner will need their own approach when they arrive — geometry is unit
 testable, a camera is not.
+
+## The scanner
+
+**The verdict is held, and the hold is the tested part.** Four seconds minimum, never
+auto-advancing; a tap inside those four seconds is remembered and acted on at the end of them. It
+is the one behaviour here that cannot be checked by looking, because the failure is a verdict that
+vanished a moment before somebody read it.
+
+**The camera is the one thing no script reaches.** Everything downstream of a decoded string is
+exercised through the typed-code path — which exists for the cracked screen a camera will not read
+and doubles as the only way this feature is testable at all. A claim about the camera itself is a
+claim about a device.
+
+**Rebuilding a Ticket Code for local testing.** A code is `ET<version>-<lookup>-<tag>` and only
+the lookup is in the database (`ticket.code_lookup`). The tag is
+`hmac_sha256(key, bytes.fromhex(lookup))[:8]` in uppercase hex, with the dev key from the
+backend's `application.yml`. Nothing that grants entry is stored, which is the point.

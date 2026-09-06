@@ -126,6 +126,12 @@
   --shadow-raised-ghost: 4px 4px 0 var(--color-paper), 4px 4px 0 2px var(--color-ink);
   --shadow-hover-ghost: 6px 6px 0 var(--color-paper), 6px 6px 0 2px var(--color-ink);
 
+  /* The same problem with the grounds swapped. On the scanner's night ground an ink
+     shadow is ink on ink, so a control there would have no depth at all - and depth is
+     the affordance that says a thing can be pressed. */
+  --shadow-raised-chalk: 4px 4px 0 var(--color-chalk);
+  --shadow-hover-chalk: 6px 6px 0 var(--color-chalk);
+
   /* Radius means "this depicts a physical object", never "this is a UI element". */
   --radius-full: 9999px;
 }
