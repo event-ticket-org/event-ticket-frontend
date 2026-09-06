@@ -435,7 +435,7 @@ paths:
           application/json:
             schema:
               type: array
-              items: { $ref: '#/components/schemas/PricingTier' }
+              items: { $ref: '#/components/schemas/PricingTierInput' }
       responses:
         '4XX': { $ref: '#/components/responses/Error4xx' }
         '200':
@@ -1009,6 +1009,30 @@ components:
 
     PricingTier:
       type: object
+      description: |
+        A Pricing Tier as it stands, which may be a name with no price yet.
+
+        Tier names come from a Seat Map, prices are set separately, and the gap between the
+        two is a real state rather than an error: a tier is named the moment a seat is drawn
+        into it, and priced whenever somebody gets round to it. Publishing is refused until
+        every tier in use has a price (requirements/003 criterion 3), so an editor has to be
+        able to see which ones are still missing - which is exactly what a null price says.
+      required: [name, price]
+      properties:
+        name: { type: string }
+        price:
+          description: Null while the tier is named on the Seat Map but not yet priced.
+          oneOf:
+            - $ref: '#/components/schemas/Money'
+            - type: 'null'
+
+    PricingTierInput:
+      type: object
+      description: |
+        Setting a price, where null means nothing. A separate schema from `PricingTier`
+        because the two directions genuinely differ: a response reports the unpriced state,
+        and a request that tried to send it would be asking to unprice a tier, which is not
+        an operation this API has.
       required: [name, price]
       properties:
         name: { type: string }

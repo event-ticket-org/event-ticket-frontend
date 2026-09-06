@@ -11,6 +11,8 @@ import { AdminPage } from '~/features/admin/AdminPage'
 import { CreateOrganizationPage } from '~/features/organizations/CreateOrganizationPage'
 import { VenuePage } from '~/features/venues/VenuePage'
 import { VenuesPage } from '~/features/venues/VenuesPage'
+import { EventPage } from '~/features/events/EventPage'
+import { EventsPage } from '~/features/events/EventsPage'
 import { RegisterPage, SignInPage, VerifyEmailPage } from '~/features/auth/AuthPages'
 import { HomePage, NotFoundPage, PlaceholderPage } from './pages'
 
@@ -64,7 +66,8 @@ export const router = createBrowserRouter([
           { path: '/manage', element: <PlaceholderPage what="The organization dashboard" slice="2" /> },
           { path: '/manage/venues', element: <VenuesPage /> },
           { path: '/manage/venues/:venueId', element: <VenuePage /> },
-          { path: '/manage/events', element: <PlaceholderPage what="Events, pricing and publishing" slice="2" /> },
+          { path: '/manage/events', element: <EventsPage /> },
+          { path: '/manage/events/:eventId', element: <EventPage /> },
         ],
       },
       {
