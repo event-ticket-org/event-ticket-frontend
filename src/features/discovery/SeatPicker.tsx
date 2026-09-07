@@ -11,15 +11,7 @@ import {
 } from '~/features/venues/seat-map/geometry'
 import { rowNameOf, rowsOf } from '~/features/venues/seat-map/seat-navigation'
 import { SeatMapView } from '~/features/venues/seat-map/SeatMapView'
-
-const TIER_FILLS = [
-  'fill-tier-1',
-  'fill-tier-2',
-  'fill-tier-3',
-  'fill-tier-4',
-  'fill-tier-5',
-  'fill-tier-6',
-]
+import { TierPatternDefs, tierPaint } from '~/features/venues/seat-map/tier-paint'
 
 /**
  * The hatch and the strike, declared exactly once for the whole page.
@@ -53,6 +45,16 @@ function SeatPatternDefs() {
       </pattern>
       </defs>
     </svg>
+  )
+}
+
+/** Both sets of patterns, so a caller mounts one thing and gets every fill the map can use. */
+function SeatAndTierDefs() {
+  return (
+    <>
+      <SeatPatternDefs />
+      <TierPatternDefs />
+    </>
   )
 }
 
@@ -91,8 +93,7 @@ export function SeatPicker({
   }, [map.seats])
 
   const priceOf = (tierName: string) => tiers.find((tier) => tier.name === tierName)?.price
-  const tierFill = (tierName: string) =>
-    TIER_FILLS[tierOrder.indexOf(tierName) % TIER_FILLS.length] ?? 'fill-paper-sunk'
+  const paintOf = (tierName: string) => tierPaint(tierOrder.indexOf(tierName))
 
   const seatClass = (seat: EventSeat) => {
     if (selected.includes(seat.id)) {
@@ -100,8 +101,10 @@ export function SeatPicker({
     }
     switch (seat.availability) {
       case 'AVAILABLE':
-        // Coloured by tier, which is what a buyer is choosing between (criterion 2).
-        return cx('stroke-ink cursor-pointer', tierFill(seat.tierName))
+        // Coloured by tier, which is what a buyer is choosing between (criterion 2). Past the
+        // sixth tier the hue repeats with a dotted overlay, and the fill moves to the
+        // attribute below - so this class carries only the stroke for those.
+        return cx('stroke-ink cursor-pointer', paintOf(seat.tierName).className)
       case 'HELD':
       case 'SOLD':
         // Fill comes from a pattern; the class carries only the stroke.
@@ -121,7 +124,7 @@ export function SeatPicker({
     if (seat.availability === 'SOLD') {
       return 'url(#seat-sold)'
     }
-    return undefined
+    return paintOf(seat.tierName).fill
   }
 
   const centre = {
@@ -161,7 +164,7 @@ export function SeatPicker({
 
   return (
     <div className="relative space-y-4">
-      <SeatPatternDefs />
+      <SeatAndTierDefs />
 
       <div className="flex flex-wrap items-center justify-between gap-4">
         <p className="font-numeric text-numeric text-ink-soft">
@@ -256,7 +259,7 @@ export function SeatPicker({
           const price = priceOf(name)
           return (
             <li key={name} className="flex items-center gap-2 text-body">
-              <Swatch className={tierFill(name)} />
+              <Swatch {...paintOf(name)} />
               {name}
               {/* Criterion 2: the tier's price is visible, not hidden behind a seat. */}
               {price && <span className="font-numeric text-numeric">{formatMoney(price)}</span>}
