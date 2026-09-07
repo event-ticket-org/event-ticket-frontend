@@ -88,8 +88,12 @@ export function PublicEventPage() {
           </div>
           {/* What it costs, before the seat map rather than only inside its legend: a buyer
               deciding whether to read on is asking the price, and a legend is a key to a
-              picture they have not looked at yet. */}
-          {details.priceFrom && (
+              picture they have not looked at yet.
+
+              Not when it is sold out, for the same reason the listing card drops it there:
+              DESIGN.md says a seat you cannot buy has no price band worth reading, and a
+              price is an invitation to an action that is no longer available. */}
+          {details.priceFrom && !soldOut && (
             <p className="text-body">
               from{' '}
               <span className="font-numeric text-numeric-lg">
@@ -130,6 +134,7 @@ export function PublicEventPage() {
             seats={chosen}
             tiers={details.pricingTiers ?? []}
             eventId={eventId}
+            soldOut={soldOut}
             onToggle={selection.toggle}
           />
         </>
@@ -149,11 +154,13 @@ function Chosen({
   seats,
   tiers,
   eventId,
+  soldOut,
   onToggle,
 }: {
   seats: EventSeat[]
   tiers: PricingTier[]
   eventId: string
+  soldOut: boolean
   onToggle: (seatId: string) => void
 }) {
   const { signedIn } = useSessionState()
@@ -164,7 +171,12 @@ function Chosen({
     return (
       <Card>
         <p className="text-body text-ink-soft">
-          Pick a seat on the map to get started. Nothing is held until you go to checkout.
+          {soldOut
+            ? // Found by looking at a sold-out event: the map showed every seat taken and
+              // this still said "pick a seat to get started", which is an instruction nobody
+              // can follow. Saying what happened is more use than repeating the happy path.
+              'Every seat has been sold. Tickets are sometimes released again if an order is refunded.'
+            : 'Pick a seat on the map to get started. Nothing is held until you go to checkout.'}
         </p>
       </Card>
     )
