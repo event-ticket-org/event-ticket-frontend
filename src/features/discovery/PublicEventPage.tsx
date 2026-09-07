@@ -69,6 +69,7 @@ export function PublicEventPage() {
         <CoverImage
           src={details.coverImageUrl}
           alt={details.coverImageAlt}
+          sizes={details.coverImageSizes}
           className="mt-6"
           eager
         />

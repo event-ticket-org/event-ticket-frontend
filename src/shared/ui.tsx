@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import type { Money } from '~/api/types'
+import type { CoverImageSize, Money } from '~/api/types'
 import { ApiError, OfflineError, ReadableError } from '~/api/errors'
 import { formatInZone, formatMoney, zoneLabel } from './format'
 
@@ -222,12 +222,23 @@ export function Card({ className, children }: { className?: string; children: Re
  * everything twice. `no-referrer` because a store put behind a CDN we did not choose does not
  * need to be told which of our pages somebody is reading.
  */
+/**
+ * How wide this picture is drawn, for the browser to pick a rendering by.
+ *
+ * The public shell is `max-w-[640px] px-4`, so a cover is 608px on anything wider than the
+ * shell and the viewport minus its padding below that. Both shapes get the same value, and
+ * that is not an oversight: `band` and `hero` differ in height, and `object-fit: cover` crops
+ * the difference vertically - the horizontal resolution they need is identical.
+ */
+const COVER_SIZES = '(min-width: 640px) 608px, calc(100vw - 32px)'
+
 export function CoverImage({
   src,
   alt,
   className,
   eager = false,
   shape = 'hero',
+  sizes,
 }: {
   src?: string | null
   /** What the picture shows. Absent means nobody described it, not that nobody should hear it. */
@@ -235,6 +246,12 @@ export function CoverImage({
   className?: string
   /** For the one cover that is already in the viewport. Deferring that one only makes it late. */
   eager?: boolean
+  /**
+   * The renderings the server made (requirements/003 criterion 22). Absent or empty is
+   * ordinary - a small upload has nothing smaller, and AVIF has no decoder on the server - and
+   * `src` is always a real image, so the fallback costs nothing but bandwidth.
+   */
+  sizes?: readonly CoverImageSize[] | null
   /**
    * `hero` is 16:9, for the event's own page where the picture is the subject. `band` is a
    * fixed 140px strip, for a listing card where it is one line of evidence among five.
@@ -254,9 +271,17 @@ export function CoverImage({
   if (!src || failed) {
     return null
   }
+  // `src` stays the largest and is what a browser without srcset support fetches - and what
+  // every browser fetches when the server could not render anything smaller.
+  const srcSet = sizes?.length
+    ? sizes.map((size) => `${size.url} ${size.width}w`).join(', ')
+    : undefined
+
   return (
     <img
       src={src}
+      srcSet={srcSet}
+      sizes={srcSet ? COVER_SIZES : undefined}
       alt={alt ?? ''}
       loading={eager ? 'eager' : 'lazy'}
       decoding="async"
