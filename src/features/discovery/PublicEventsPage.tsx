@@ -18,16 +18,18 @@ type Filters = { q: string; city: string; from: string; to: string }
 const NOTHING: Filters = { q: '', city: '', from: '', to: '' }
 
 /**
- * Seats left below which the number is worth saying out loud.
+ * The share of an Event's seats below which how many are left is worth saying out loud.
  *
- * A flat number rather than a proportion, and that is a real limitation rather than a
- * simplification: the contract carries how many seats are left and not how many there were, so
- * "ten left" reads the same for a room of twenty and a room of two thousand. Ten of two
- * thousand deserves to be louder than this is. Fixing it properly means the Event summary
- * carrying its capacity, which is a contract change and was not worth making before anybody had
- * looked at this one.
+ * A proportion, now that the contract carries both numbers. It was a flat ten, and that read
+ * the same for a room of twenty and a room of two thousand - which are not the same news. A
+ * tenth left is nearly gone at either size, and it is the only reading of "nearly gone" that
+ * does not need a second number invented for it.
+ *
+ * Said as a count and never as urgency: DESIGN.md's voice does not sell, so this is "4 seats
+ * left" and not "selling fast". The fact is what a buyer can act on; the adjective is what a
+ * ticket site says when it wants them to hurry.
  */
-const FEW = 10
+const NEARLY_GONE = 0.1
 
 /**
  * What is on sale, ordered by when it starts.
@@ -314,7 +316,7 @@ function EventCard({ event }: { event: PublicEventSummary }) {
             ) : (
               <span />
             )}
-            {event.seatsAvailable <= FEW && (
+            {nearlyGone(event) && (
               <span className="text-body-strong">
                 {event.seatsAvailable} {event.seatsAvailable === 1 ? 'seat' : 'seats'} left
               </span>
@@ -371,6 +373,16 @@ function Loading() {
       </ul>
     </>
   )
+}
+
+/**
+ * Whether how many seats are left is news.
+ *
+ * `seatsTotal` of zero is an Event with nothing on sale at all - every seat withheld - which is
+ * not "nearly gone" and would divide by nothing if it were treated as a proportion.
+ */
+function nearlyGone(event: PublicEventSummary): boolean {
+  return event.seatsTotal > 0 && event.seatsAvailable / event.seatsTotal <= NEARLY_GONE
 }
 
 /** The filters currently narrowing the list, as the chips that can remove them. */
