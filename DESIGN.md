@@ -52,6 +52,22 @@ Every component below declares which shells it belongs to.
 | Ground | `{colors.paper}` | `{colors.paper}` | `{colors.night}` |
 | Density | Tight; borders separate, not whitespace | Airy; one decision per screen | One object per screen |
 
+**Platform administration is the manager shell, and that is the decision rather than a
+placeholder.** There is one screen — the approval queue — and it is a dense list worked through
+at a desk, which is exactly what the manager shell is for. A third set of rules for one table
+would be rules with no second case to check them against.
+
+Two things about it are specific enough to write down, and neither is about appearance:
+
+- **A decision is never the last one.** An Organization may be approved after a rejection and
+  stopped after an approval (requirements/001 criterion 15). The buttons used to appear only
+  while a decision was pending, which made a mistaken rejection permanent for anybody using the
+  product while the API would still have accepted a correction.
+- **A button says what it does to this Organization, not what the API calls it.** Refusing an
+  Organization that has never sold anything is *Reject*; doing the same to one that is already
+  selling is *Withdraw approval*. One request, two consequences, and the louder one is the
+  destructive one.
+
 **The scanner is a different room, not a dark theme.** It inverts the ground and spends its entire
 colour budget on a single verdict. Its palette is the same palette; nothing else about it is shared.
 
@@ -1068,8 +1084,6 @@ Honest list of what this document does not yet decide.
   every one of those is a round trip to the object store. There is also no transformation on the
   way out: a picture too large to decode, or in a format the server cannot read, is served whole.
   nfr.md names a ceiling rather than a pipeline deliberately; this is what remains of that price.
-- **No specification for the platform-admin screens.** They are internal, low-traffic, and will
-  inherit the manager shell until they have enough surface to deserve their own rules.
 - **Nothing here has been tested against a room-sized map.** `nfr.md` puts 2,000 seats on an
   Event and the seat map is built for that number — one `<g>`, no per-seat state, delegated
   events — but the largest map anything has actually been run against is a few dozen. The

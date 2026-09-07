@@ -77,6 +77,7 @@ export function AdminPage() {
               <thead>
                 <tr className="border-b-2 border-ink">
                   <th className="px-4 py-3 text-label uppercase">Name</th>
+                  <th className="px-4 py-3 text-label uppercase">Owners</th>
                   <th className="px-4 py-3 text-label uppercase">Created</th>
                   <th className="px-4 py-3 text-label uppercase">Status</th>
                   <th className="px-4 py-3 text-label uppercase">
@@ -144,6 +145,67 @@ function Asked({ organization }: { organization: Organization }) {
   )
 }
 
+/**
+ * Who is accountable for this Organization (requirements/001 criterion 14).
+ *
+ * Approving decides who may sell tickets to the public on a page this platform endorses, and
+ * until the contract carried this the screen showed a name and a date. Address as well as name
+ * because the name is whatever somebody typed and the address is the thing that was proved.
+ */
+function Owners({ organization }: { organization: Organization }) {
+  const owners = organization.owners ?? []
+  if (owners.length === 0) {
+    return <span className="text-body text-ink-soft">—</span>
+  }
+
+  return (
+    <ul className="space-y-1">
+      {owners.map((owner) => (
+        <li key={owner.email}>
+          {/*
+            A display name is whatever the owner typed at registration, and plenty of people
+            type their address - printing it twice reads as a rendering fault rather than as
+            two facts, so the name line is dropped when it says nothing the next line does not.
+          */}
+          {owner.displayName !== owner.email && (
+            <div className="text-body">{owner.displayName}</div>
+          )}
+          <div className="text-body text-ink-soft">
+            {owner.email}
+            {/*
+              A word, not a colour or an icon: DESIGN.md's rule that colour is never the only
+              signal applies hardest to the one thing on this row that might change a decision.
+              Only the unverified case is marked - a verified address is the ordinary state, and
+              a badge on every row is a badge nobody reads.
+            */}
+            {!owner.emailVerified && (
+              <span className="ml-2 border-2 border-ink bg-paper-sunk px-1.5 text-label uppercase">
+                Unverified
+              </span>
+            )}
+          </div>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/**
+ * Why a rejected Organization was rejected (requirements/001 criterion 6).
+ *
+ * It was written by an administrator and emailed to the owners; not showing it here left the
+ * rejected queue a list of names that did not say why any of them was rejected, to the person
+ * who rejected them.
+ */
+function Reason({ organization }: { organization: Organization }) {
+  if (!organization.decisionReason) {
+    return null
+  }
+  return (
+    <p className="mt-2 max-w-[40ch] text-body text-ink-soft">{organization.decisionReason}</p>
+  )
+}
+
 function Row({
   organization,
   striped,
@@ -159,10 +221,14 @@ function Row({
     <tr className={cx('border-b border-ink last:border-b-0', striped && 'bg-paper-sunk')}>
       <td className="px-4 py-3 align-top text-body-strong">{organization.name}</td>
       <td className="px-4 py-3 align-top">
+        <Owners organization={organization} />
+      </td>
+      <td className="px-4 py-3 align-top">
         <Asked organization={organization} />
       </td>
       <td className="px-4 py-3 align-top">
         <StatusChip status={organization.status} />
+        <Reason organization={organization} />
       </td>
       <td className="px-4 py-3 align-top">
         <Decision organization={organization} pending={pending} onDecide={onDecide} align="end" />
@@ -194,12 +260,17 @@ function Card({
         <div className="text-body-strong">{organization.name}</div>
       </div>
       <div>
+        <div className="text-label uppercase">Owners</div>
+        <Owners organization={organization} />
+      </div>
+      <div>
         <div className="text-label uppercase">Created</div>
         <Asked organization={organization} />
       </div>
       <div>
         <div className="text-label uppercase">Status</div>
         <StatusChip status={organization.status} />
+        <Reason organization={organization} />
       </div>
       <Decision organization={organization} pending={pending} onDecide={onDecide} align="start" />
     </div>
@@ -226,12 +297,19 @@ function Decision({
 }) {
   const [rejecting, setRejecting] = useState(false)
   const [reason, setReason] = useState('')
-  const waiting = organization.status === 'PENDING_APPROVAL'
+
+  // requirements/001 criterion 15: a decision may be revisited.
+  //
+  // These buttons used to appear only while a decision was pending, which made a rejection
+  // permanent as far as anybody using the product was concerned - the domain always allowed a
+  // second decision and the API always accepted one, so an Organization rejected by mistake
+  // was reachable only by somebody with curl.
+  const approved = organization.status === 'APPROVED'
+  const rejected = organization.status === 'REJECTED'
 
   return (
     <>
-      {waiting &&
-        (rejecting ? (
+      {rejecting ? (
           // Rejecting emails the Owner and is not something to do by a stray click, so it
           // costs a second step and carries the reason the contract already accepts. The
           // reason is the difference between a decision somebody can act on and a dead end.
@@ -261,33 +339,41 @@ function Decision({
                 disabled={pending || reason.trim().length === 0}
                 onClick={() => onDecide('REJECTED', reason.trim())}
               >
-                Reject
+                {approved ? 'Withdraw approval' : 'Reject'}
               </Button>
             </div>
           </div>
-        ) : (
-          // Approving is the common, safe and reversible-by-re-approval outcome, so it is
-          // the loud one. Rejecting is quiet and takes two steps: DESIGN.md asks for the
-          // destructive path to be the harder one, and equal buttons make it the opposite.
-          <div
-            className={cx(
-              'flex flex-wrap gap-3',
-              align === 'end' ? 'justify-end' : 'justify-start',
-            )}
-          >
+      ) : (
+        // Approving is the common, safe and reversible outcome, so it is the loud one. The
+        // refusing path is quiet and takes two steps: DESIGN.md asks for the destructive path
+        // to be the harder one, and equal buttons make it the opposite.
+        //
+        // An approved Organization is already selling tickets, so withdrawing approval is the
+        // most destructive thing on this screen - it keeps the second step and says what it
+        // does rather than repeating the word the API happens to use.
+        <div
+          className={cx(
+            'flex flex-wrap gap-3',
+            align === 'end' ? 'justify-end' : 'justify-start',
+          )}
+        >
+          {!approved && (
             <Button className="w-auto" disabled={pending} onClick={() => onDecide('APPROVED')}>
-              Approve
+              {rejected ? 'Approve after all' : 'Approve'}
             </Button>
+          )}
+          {!rejected && (
             <Button
               variant="ghost"
               className="w-auto"
               disabled={pending}
               onClick={() => setRejecting(true)}
             >
-              Reject
+              {approved ? 'Withdraw approval' : 'Reject'}
             </Button>
-          </div>
-        ))}
+          )}
+        </div>
+      )}
     </>
   )
 }
