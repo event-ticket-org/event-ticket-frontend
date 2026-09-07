@@ -68,3 +68,61 @@ export function zoneLabel(timeZone: string): string {
   const city = timeZone.split('/').pop() ?? timeZone
   return city.replace(/_/g, ' ')
 }
+
+/**
+ * How far away something is, as a duration.
+ *
+ * Deliberately durations and never calendar words. "Tomorrow" is a question about which day it
+ * is somewhere, and this application has two candidate zones for that - the reader's and the
+ * Venue's - which is exactly the ambiguity nfr.md's timezone rule exists to remove. A duration
+ * has no such problem: three weeks is three weeks in Hanoi and in Da Nang, so this can sit
+ * beside a venue-zone clock without contradicting it.
+ *
+ * Null once the moment has passed, so a caller decides what to say rather than showing
+ * "in -2 days" on a listing that should not have contained the event at all.
+ */
+export function timeUntil(iso: string, now: number = Date.now()): string | null {
+  const ms = new Date(iso).getTime() - now
+  if (ms <= 0) {
+    return null
+  }
+  const hours = Math.round(ms / 3_600_000)
+  if (hours < 1) {
+    return 'within the hour'
+  }
+  if (hours < 24) {
+    return `in ${hours} ${plural(hours, 'hour')}`
+  }
+  const days = Math.round(hours / 24)
+  if (days < 14) {
+    return `in ${days} ${plural(days, 'day')}`
+  }
+  const weeks = Math.round(days / 7)
+  if (weeks < 9) {
+    return `in ${weeks} ${plural(weeks, 'week')}`
+  }
+  const months = Math.round(days / 30)
+  return `in ${months} ${plural(months, 'month')}`
+}
+
+function plural(count: number, noun: string): string {
+  return count === 1 ? noun : `${noun}s`
+}
+
+/**
+ * The month an event falls in, for the separators that break a long listing into something
+ * scannable.
+ *
+ * In the Venue's zone, like the date on the card below it - a heading that disagreed with the
+ * rows under it would be worse than no heading. Vietnam is a single zone (nfr.md), so the
+ * headings of a listing ordered by instant stay in order; a market spanning several zones would
+ * need this computing from one chosen zone instead.
+ */
+export function monthInZone(iso: string, timeZone: string): string {
+  return formatInZone(iso, timeZone, {
+    dateStyle: undefined,
+    timeStyle: undefined,
+    month: 'long',
+    year: 'numeric',
+  })
+}

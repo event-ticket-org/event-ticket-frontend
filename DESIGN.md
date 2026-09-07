@@ -520,15 +520,34 @@ bytes rather than by what a client claimed. What follows is about the two things
 not settle: that a link can still fail, and that a picture nobody described is not a picture
 described badly.
 
-**A fixed 16:9 box, `object-fit: cover`, `border-2 border-ink`, radius 0.** A list of events
-whose images each set their own height reads as broken before anybody has looked at one of
-them. Cropping is the price of a grid, and it is the right price — an organizer who cares about
+**`object-fit: cover`, `border-2 border-ink`, radius 0, and one of two fixed shapes.** A list of
+events whose images each set their own height reads as broken before anybody has looked at one
+of them. Cropping is the price of that, and it is the right price — an organizer who cares about
 the crop can crop the file.
+
+- **`hero` — 16:9**, on the Event's own page, where the picture is the subject.
+- **`band` — a fixed 140px strip**, on a listing card, where it is one line of evidence among
+  five.
+
+The two shapes exist because the one shape did not survive contact with the listing. 16:9 across
+the public shell's 640px column is a 360px image, and measured card heights were 496px and 156px
+in the same list — a card with a cover was more than three times the height of one without, and
+the difference was decided by whether an organizer had bothered to upload a picture. A list
+whose rows vary that much cannot be scanned, and scanning is the only thing a listing does.
+
+The original rule justified itself as "the price of a grid". There is no grid here and there is
+not going to be one: [the public shell is one column at every size](#layout--grid). A rule
+carried over from a layout this shell does not have is worth re-deciding rather than obeying.
 
 **A missing cover is not a hole, it is one less thing on the card.** No placeholder block, no
 grey rectangle, no camera glyph. A placeholder is a promise of content that is not coming, and
 a listing where half the cards carry a grey box looks broken in a way a listing of plain cards
-does not.
+does not. This is why the shorter `band` is the answer to uneven cards and a placeholder is not:
+one makes the difference smaller, the other fills it with a lie.
+
+A **loading skeleton is not a placeholder** and is allowed. The distinction is whether the
+content is coming: a skeleton stands in for a row that is on its way and disappears when it
+arrives, where a cover placeholder stands in for a picture that does not exist.
 
 **A URL that fails to load is a missing cover.** Not an alt string next to a broken-image icon —
 the component hides itself on `error`. Uploading removed the commonest reasons for this and not

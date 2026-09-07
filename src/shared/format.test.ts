@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatInZone, formatMoney, remainingUntil } from './format'
+import { formatInZone, formatMoney, monthInZone, remainingUntil, timeUntil } from './format'
 
 describe('money', () => {
   it('treats the amount as dong, not as cents', () => {
@@ -49,5 +49,65 @@ describe('the seat hold countdown', () => {
     // A buyer must be told the hold has gone, not shown "-0:03" and left to guess.
     expect(remainingUntil('2026-06-01T12:00:00Z', now)).toBeNull()
     expect(remainingUntil('2026-06-01T11:59:00Z', now)).toBeNull()
+  })
+})
+
+describe('how far away something is', () => {
+  const now = Date.parse('2026-09-07T00:00:00Z')
+  const at = (offsetMs: number) => new Date(now + offsetMs).toISOString()
+  const HOUR = 3_600_000
+  const DAY = 24 * HOUR
+
+  it('counts in the largest unit that still says something useful', () => {
+    expect(timeUntil(at(20 * 60_000), now)).toBe('within the hour')
+    expect(timeUntil(at(3 * HOUR), now)).toBe('in 3 hours')
+    expect(timeUntil(at(6 * DAY), now)).toBe('in 6 days')
+    expect(timeUntil(at(21 * DAY), now)).toBe('in 3 weeks')
+    expect(timeUntil(at(120 * DAY), now)).toBe('in 4 months')
+  })
+
+  it('says one hour rather than one hours', () => {
+    expect(timeUntil(at(HOUR), now)).toBe('in 1 hour')
+    expect(timeUntil(at(DAY), now)).toBe('in 1 day')
+  })
+
+  /**
+   * Units round to the nearest, which is what a person would say, so "within the hour" ends
+   * at half past rather than at the hour. Written down because it is the one boundary here
+   * that is a choice rather than arithmetic - and the first version of this test asserted the
+   * other answer.
+   */
+  it('rounds to the nearest unit rather than down', () => {
+    expect(timeUntil(at(29 * 60_000), now)).toBe('within the hour')
+    expect(timeUntil(at(31 * 60_000), now)).toBe('in 1 hour')
+    expect(timeUntil(at(100 * 60_000), now)).toBe('in 2 hours')
+  })
+
+  /**
+   * The listing must not contain an event that has started, but the clock does not stop
+   * while a page is open. Null makes the caller decide rather than rendering "in -2 days".
+   */
+  it('is null once the moment has passed', () => {
+    expect(timeUntil(at(-HOUR), now)).toBeNull()
+    expect(timeUntil(at(0), now)).toBeNull()
+  })
+
+  /**
+   * The reason this is a duration and never a calendar word. "Tomorrow" would have to pick
+   * between the reader's zone and the venue's, and those disagree - which is the ambiguity
+   * nfr.md's timezone rule exists to remove. A duration is the same length in both.
+   */
+  it('does not depend on a timezone at all', () => {
+    const midnightInHanoi = '2026-09-14T17:00:00Z'
+    expect(timeUntil(midnightInHanoi, Date.parse('2026-09-07T17:00:00Z'))).toBe('in 7 days')
+  })
+})
+
+describe('the month an event falls in', () => {
+  it('is the venue’s month, so the heading agrees with the date beneath it', () => {
+    // 00:30 on 1 October in Hanoi is still 30 September in UTC. The heading has to follow
+    // the clock the card shows, or a card would sit under the wrong month.
+    expect(monthInZone('2026-09-30T17:30:00Z', 'Asia/Ho_Chi_Minh')).toBe('October 2026')
+    expect(monthInZone('2026-09-30T17:30:00Z', 'UTC')).toBe('September 2026')
   })
 })
