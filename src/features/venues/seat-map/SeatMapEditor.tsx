@@ -16,6 +16,7 @@ import {
 import { editorAction } from './editor-keys'
 import { rangeRect } from './seat-navigation'
 import { SeatMapView } from './SeatMapView'
+import { TierPatternDefs, tierPaint, type TierPaint } from './tier-paint'
 import { describeProblem } from './validation'
 import { useSeatMapDraft } from './useSeatMapDraft'
 import type { BlockSpec } from './generator'
@@ -39,15 +40,6 @@ function offsetOf(dx: number, dy: number): string {
   ].filter(Boolean)
   return parts.length === 0 ? 'Back where it started.' : `Moved ${parts.join(', ')}.`
 }
-
-const TIER_FILLS = [
-  'fill-tier-1',
-  'fill-tier-2',
-  'fill-tier-3',
-  'fill-tier-4',
-  'fill-tier-5',
-  'fill-tier-6',
-]
 
 type Drag =
   | { kind: 'marquee'; from: { x: number; y: number }; to: { x: number; y: number }; additive: boolean }
@@ -149,10 +141,7 @@ export function SeatMapEditor({
     }
   }, [])
 
-  const tierFill = (seat: SeatMapSeat) => {
-    const index = draft.tiers.indexOf(seat.tierName)
-    return TIER_FILLS[index % TIER_FILLS.length] ?? 'fill-paper-sunk'
-  }
+  const paintOf = (seat: SeatMapSeat) => tierPaint(draft.tiers.indexOf(seat.tierName))
 
   /** Pick up - move - drop, which is what a drag is when it is taken apart. */
   const pickUp = (index: number, element: number | null) => {
@@ -260,8 +249,14 @@ export function SeatMapEditor({
       // grab, not pointer: a seat is moved, not followed. The cursor is the only thing
       // that says so before somebody tries it.
       drag?.kind === 'move' ? 'cursor-grabbing' : 'cursor-grab',
-      draft.selection.has(index) ? 'fill-info stroke-[0.16]' : tierFill(seat),
+      draft.selection.has(index) ? 'fill-info stroke-[0.16]' : paintOf(seat).className,
     )
+
+  // Only for the tiers past the sixth, which are a hue plus a dotted pattern rather than a
+  // flat fill. A selected seat is `fill-info` and keeps it: the selection is what somebody is
+  // looking at, and a texture under it would compete with the thing it is meant to announce.
+  const seatFill = (seat: SeatMapSeat, index: number) =>
+    draft.selection.has(index) ? undefined : paintOf(seat).fill
 
   const marquee: Rect | null =
     drag?.kind === 'marquee' ? rectBetween(drag.from, drag.to) : null
@@ -398,10 +393,12 @@ export function SeatMapEditor({
               </div>
             </div>
           )}
+          <TierPatternDefs />
           <SeatMapView
             map={draft.map}
             bounds={draft.bounds}
             seatClass={seatClass}
+            seatFill={seatFill}
             labelledSeats={draft.map.seats.length <= 200}
             marquee={marquee}
             selectedElement={draft.elementSelection}
@@ -541,7 +538,7 @@ export function SeatMapEditor({
 
         <SidePanel
           draft={draft}
-          tierFill={tierFill}
+          tierPaintOf={paintOf}
           onLandmarkKeyDown={(event, index) => {
             if (draft.elementSelection !== index) {
               draft.selectElement(index)
@@ -571,11 +568,11 @@ export function SeatMapEditor({
 
 function SidePanel({
   draft,
-  tierFill,
+  tierPaintOf,
   onLandmarkKeyDown,
 }: {
   draft: ReturnType<typeof useSeatMapDraft>
-  tierFill: (seat: SeatMapSeat) => string
+  tierPaintOf: (seat: SeatMapSeat) => TierPaint
   /** The editor's own key vocabulary, so a landmark moves by the same keys a seat does. */
   onLandmarkKeyDown: (event: React.KeyboardEvent, index: number) => void
 }) {
@@ -608,7 +605,11 @@ function SidePanel({
                       cy={0.5}
                       r={0.42}
                       strokeWidth={0.1}
-                      className={cx('stroke-ink', tierFill({ tierName: tier } as SeatMapSeat))}
+                      // Drawn the same way the seat is, pattern and all, so the panel and the
+                      // map cannot disagree about which tier is which.
+                      fill={tierPaintOf({ tierName: tier } as SeatMapSeat).fill}
+                      className={cx('stroke-ink',
+                        tierPaintOf({ tierName: tier } as SeatMapSeat).className)}
                     />
                   </svg>
                   {tier}

@@ -166,7 +166,24 @@ View with `{colors.stop}` would say something about those tiers that is not true
 So tiers get their own scale, and it is deliberately muted where the state scale is vivid — the
 two are never shown together, but a tier should not look like a verdict. **These are used only
 inside the seat map and its legend**, and the legend always names the tier, so colour is an aid
-rather than the only signal. Beyond six tiers the scale repeats; see [Known Gaps](#known-gaps).
+rather than the only signal.
+
+**Past the sixth tier: the same six hues, dotted.** Adding a seventh hue is a design decision and
+the palette refuses it; repeating the first hue was worse, because two tiers then looked
+identical on the map and reading the map at a glance is the only thing a map is for. So tiers 7
+to 12 are hue 1 to 6 with a dot texture, which makes telling two tiers apart either *a different
+colour* or *plain against dotted* — never one texture against another. That matters at the eight
+pixels a seat gets on a full map, where a scale of five different textures is unreadable and
+"dotted or not" is still easy.
+
+**Dots, because the diagonals are taken.** Held is a diagonal hatch and sold a diagonal strike.
+Those appear only on seats that are not available, and an unavailable state overrides the tier
+fill entirely, so the two can never land on one glyph — but a texture reads as a texture at a
+glance, and a tier that looked hatched would ask a buyer to tell "expensive" from "gone" by
+looking harder.
+
+Twelve, then, before anything repeats. A venue with thirteen pricing tiers has a problem this
+document cannot solve for it.
 
 ### Colour is never the only signal
 
@@ -1046,10 +1063,6 @@ Honest list of what this document does not yet decide.
   question. It became visible the moment a second provider existed: `'FAKE'` was written into
   two click handlers, so Stripe was reachable by the API and not by the product.
 
-- **The tier scale repeats after six.** A Venue with seven Pricing Tiers gets two the same
-  colour. The legend still names them and selecting a tier still highlights it, so nothing is
-  ambiguous — but the map stops being readable at a glance, and a seventh tier is a signal the
-  scale needs patterns rather than more hues.
 - **No motion specification for seat map pan and zoom.** Momentum, bounds and zoom limits are
   unspecified and will be settled when the component is built.
 - **A cover is served at whatever size it was uploaded.** No derived sizes, no CDN, no
