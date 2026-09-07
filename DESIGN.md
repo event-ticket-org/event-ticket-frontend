@@ -1063,12 +1063,11 @@ Honest list of what this document does not yet decide.
   question. It became visible the moment a second provider existed: `'FAKE'` was written into
   two click handlers, so Stripe was reachable by the API and not by the product.
 
-- **No motion specification for seat map pan and zoom.** Momentum, bounds and zoom limits are
-  unspecified and will be settled when the component is built.
-- **A cover is served at whatever size it was uploaded.** No derived sizes, no CDN, no
-  transformation — a five-megabyte poster is five megabytes on a phone. nfr.md names the
-  ceiling rather than a pipeline deliberately, and this is the price of that: revisit when
-  somebody is paying for the bandwidth.
+- **Covers are served straight from the bucket.** Derived sizes exist now — the server renders
+  320, 640 and 1280 and the image carries a `srcset` — but there is no CDN and no edge cache, so
+  every one of those is a round trip to the object store. There is also no transformation on the
+  way out: a picture too large to decode, or in a format the server cannot read, is served whole.
+  nfr.md names a ceiling rather than a pipeline deliberately; this is what remains of that price.
 - **No specification for the platform-admin screens.** They are internal, low-traffic, and will
   inherit the manager shell until they have enough surface to deserve their own rules.
 - **Nothing here has been tested against a room-sized map.** `nfr.md` puts 2,000 seats on an
