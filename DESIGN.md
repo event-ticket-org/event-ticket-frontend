@@ -559,6 +559,18 @@ picture shows, because nobody else knows. A cover nobody described is marked dec
 than described with the Event's title — which is already next to it, and repeating it is the
 standard wrong answer that makes a screen reader say everything twice.
 
+**The browser picks the file; both shapes ask for the same width.** The server renders a cover
+at several widths and says which exist, so the image carries a `srcset` and lets the browser
+choose by viewport and pixel density. `band` and `hero` share one `sizes` value, and that is not
+an oversight — they differ in *height*, and `object-fit: cover` crops the difference vertically,
+so the horizontal resolution they need is identical. The value follows this shell:
+`(min-width: 640px) 608px, calc(100vw - 32px)`, which is `max-w-[640px] px-4` written out.
+
+The saving is not band-versus-hero, it is not fetching the original: an organizer uploads what
+their design tool exported, and `nfr.md` lets that be five megabytes. A cover with no renderings
+— too small to have any, or a format the server cannot decode — falls back to that single file,
+which is why `src` is always the full-size image and never one of the renderings.
+
 **`referrerPolicy="no-referrer"` and `loading="lazy"`.** The bucket may end up behind a CDN
 nobody here chose: it does not need to be told which of our pages a visitor is reading, and it
 does not need to be contacted at all for a card nobody has scrolled to.

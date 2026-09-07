@@ -272,6 +272,7 @@ function EventCard({ event }: { event: PublicEventSummary }) {
       <CoverImage
         src={event.coverImageUrl}
         alt={event.coverImageAlt}
+        sizes={event.coverImageSizes}
         shape="band"
         className="border-0 border-b-2"
       />
