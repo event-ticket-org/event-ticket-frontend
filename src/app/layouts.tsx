@@ -139,6 +139,7 @@ export function ManagerLayout() {
       aside={
         // Switching reissues the token, because the active Organization is a claim
         // inside it and never a parameter on a request (ADR-0004).
+        <div className="flex flex-wrap items-center gap-4">
         <select
           aria-label="Active organization"
           className="min-h-11 border-2 border-ink bg-paper px-3 py-2 text-body text-ink"
@@ -155,6 +156,13 @@ export function ManagerLayout() {
             </option>
           ))}
         </select>
+        {/* A shell with no way out is a trap, and this one had none: the admin shell has
+            carried a way back to the site since it was written, and the organizer's had
+            neither that nor sign-out. Somebody who clicked Manage could leave only by
+            pressing the browser's back button. */}
+        <NavLink to="/">Back to the app</NavLink>
+        <SignOutButton />
+        </div>
       }
     >
       <Outlet />
@@ -169,7 +177,8 @@ export function ManagerLayout() {
  */
 export function AdminLayout() {
   return (
-    <ManagerFrame home="/admin" title="Platform" nav={<NavLink to="/">Back to the app</NavLink>}>
+    <ManagerFrame home="/admin" title="Platform" nav={<NavLink to="/">Back to the app</NavLink>}
+                  aside={<SignOutButton />}>
       <Outlet />
     </ManagerFrame>
   )

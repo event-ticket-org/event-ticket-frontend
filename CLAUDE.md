@@ -141,6 +141,18 @@ can report a clean gap and still overlap on screen.
 **Tier colours are categorical, not semantic** — see DESIGN.md. A tier is not a state, and the
 four state colours would say things about VIP and Restricted View that are not true.
 
+**`MoneyTotal` is a total, not a currency formatter.** DESIGN.md makes it the largest object on
+a screen where money moves, which is right for a checkout and wrong five times over in a list -
+used per row on the dashboard it drew display-sized zeros that shouted over every event title. A
+money value in a column is `formatMoney` at the row's own size. And nothing at all when it is
+zero: "0 sold" beside "0 ₫" is the same fact twice, in a heavier typeface.
+
+**A screen tells you what a person may see; the server decides it.** The dashboard does not ask
+for `/events` as Gate Staff, because that endpoint refuses them (requirements/007 criterion 13)
+- the question is not what to hide but what not to request, and a page that fires a call it
+knows will 403 spends a round trip to draw an error nobody needed. The refusal remains the
+guarantee; not asking is the courtesy.
+
 ## Talking to the backend
 
 ```bash
