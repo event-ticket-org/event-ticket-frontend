@@ -60,17 +60,28 @@ export function Problem({ error }: { error: unknown }) {
 export function Field({
   label,
   hint,
+  problem,
   children,
 }: {
   label: string
   hint?: string
+  problem?: string
   children: ReactNode
 }) {
   return (
     <label className="block">
       <span className="mb-2 block text-label uppercase text-ink">{label}</span>
       {children}
-      {hint && <span className="mt-2 block text-body text-ink-soft">{hint}</span>}
+      {problem ? (
+        // The bar carries the signal as well as the words, because DESIGN.md says colour is
+        // never the only one - somebody who cannot tell stop from ink still sees a mark
+        // beside this field and no mark beside the others.
+        <span role="alert" className="mt-2 flex gap-2 border-l-[3px] border-stop pl-2 text-body text-ink">
+          {problem}
+        </span>
+      ) : (
+        hint && <span className="mt-2 block text-body text-ink-soft">{hint}</span>
+      )}
     </label>
   )
 }
