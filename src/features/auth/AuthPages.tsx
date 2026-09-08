@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { Button, Field, Problem, inputClass } from '~/shared/ui'
-import { useRegister, useSignIn, useVerifyEmail } from './session-hooks'
+import {
+  useRegister,
+  useRequestPasswordReset,
+  useResetPassword,
+  useSignIn,
+  useVerifyEmail,
+} from './session-hooks'
 
 export function SignInPage() {
   const navigate = useNavigate()
@@ -42,6 +48,11 @@ export function SignInPage() {
       <Button pending={signIn.isPending}>Sign in</Button>
       <p className="text-body text-ink-soft">
         No account? <Link className="underline underline-offset-4" to="/register">Create one</Link>
+      </p>
+      <p className="text-body text-ink-soft">
+        <Link className="underline underline-offset-4" to="/forgot-password">
+          Forgotten your password?
+        </Link>
       </p>
     </form>
   )
@@ -139,5 +150,155 @@ export function VerifyEmailPage() {
       <Problem error={verify.error} />
       {verify.isPending && <p className="text-ink-soft">One moment…</p>}
     </div>
+  )
+}
+
+/**
+ * requirements/001 criterion 17.
+ *
+ * <p>The success screen says "if that address has an account", and the conditional is load
+ * bearing rather than hedging: the server answers the same for an address it has never seen,
+ * and a screen reading "we have sent you an email" would report what the endpoint deliberately
+ * will not. It is also the honest thing to show somebody who has mistyped their own address,
+ * which is the common case and the one worth wording for.
+ */
+export function ForgotPasswordPage() {
+  const request = useRequestPasswordReset()
+  const [email, setEmail] = useState('')
+
+  if (request.isSuccess) {
+    return (
+      <div className="mx-auto mt-16 w-full max-w-sm space-y-4">
+        <h1 className="text-title">Check your email</h1>
+        <p className="text-ink-soft">
+          If <strong>{email}</strong> has an account, a link to set a new password is on its
+          way. It expires in an hour and can be used once.
+        </p>
+        <p className="text-body text-ink-soft">
+          Nothing arrived? Check the address for a typo, then{' '}
+          <Link className="underline underline-offset-4" to="/sign-in">
+            try signing in
+          </Link>{' '}
+          — asking again sends a new link and stops the old one working.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <form
+      className="mx-auto mt-16 w-full max-w-sm space-y-4"
+      onSubmit={(submit) => {
+        submit.preventDefault()
+        request.mutate(email)
+      }}
+    >
+      <h1 className="text-title">Reset your password</h1>
+      <p className="text-ink-soft">
+        Give us the address on the account and we will send a link to set a new password.
+      </p>
+      <Problem error={request.error} />
+      <Field label="Email">
+        <input
+          className={inputClass}
+          type="email"
+          autoComplete="email"
+          value={email}
+          onChange={(change) => setEmail(change.target.value)}
+          required
+        />
+      </Field>
+      <Button pending={request.isPending}>Send the link</Button>
+      <p className="text-body text-ink-soft">
+        Remembered it?{' '}
+        <Link className="underline underline-offset-4" to="/sign-in">
+          Sign in
+        </Link>
+      </p>
+    </form>
+  )
+}
+
+/**
+ * The destination of the emailed link. Setting the password signs the person in, so this ends
+ * in the application rather than back at a form (criterion 19).
+ *
+ * <p>Unlike VerifyEmailPage this does not act on arrival - there is a password to type first -
+ * so a missing token is reported here rather than after a pointless request.
+ *
+ * <p>The confirmation field is a courtesy the server does not need and a person does: the new
+ * password takes effect immediately and every other session has just been revoked, so a typo
+ * that nobody catches is a second lockout, arrived at from inside the recovery from the first.
+ */
+export function ResetPasswordPage() {
+  const [params] = useSearchParams()
+  const navigate = useNavigate()
+  const reset = useResetPassword()
+  const token = params.get('token')
+  const [password, setPassword] = useState('')
+  const [confirmation, setConfirmation] = useState('')
+
+  const mismatch = confirmation.length > 0 && confirmation !== password
+
+  if (!token) {
+    return (
+      <div className="mx-auto mt-16 w-full max-w-sm space-y-4">
+        <h1 className="text-title">That link is incomplete</h1>
+        <p className="text-ink-soft">
+          It is missing the part that identifies your account, which usually means it was cut
+          short by the email program that displayed it.
+        </p>
+        <p className="text-body text-ink-soft">
+          <Link className="underline underline-offset-4" to="/forgot-password">
+            Ask for a new link
+          </Link>
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <form
+      className="mx-auto mt-16 w-full max-w-sm space-y-4"
+      onSubmit={(submit) => {
+        submit.preventDefault()
+        if (mismatch) return
+        reset.mutate({ token, password }, { onSuccess: () => void navigate('/', { replace: true }) })
+      }}
+    >
+      <h1 className="text-title">Set a new password</h1>
+      <p className="text-ink-soft">
+        Everywhere else this account is signed in will be signed out.
+      </p>
+      <Problem error={reset.error} />
+      <Field label="New password">
+        <input
+          className={inputClass}
+          type="password"
+          autoComplete="new-password"
+          minLength={12}
+          value={password}
+          onChange={(change) => setPassword(change.target.value)}
+          required
+        />
+      </Field>
+      <Field label="New password again" problem={mismatch ? 'These two do not match.' : undefined}>
+        <input
+          className={inputClass}
+          type="password"
+          autoComplete="new-password"
+          value={confirmation}
+          onChange={(change) => setConfirmation(change.target.value)}
+          required
+        />
+      </Field>
+      <Button pending={reset.isPending}>Set the password</Button>
+      <p className="text-body text-ink-soft">
+        Link expired?{' '}
+        <Link className="underline underline-offset-4" to="/forgot-password">
+          Ask for a new one
+        </Link>
+      </p>
+    </form>
   )
 }

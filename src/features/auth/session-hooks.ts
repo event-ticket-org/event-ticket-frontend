@@ -68,6 +68,38 @@ export function useVerifyEmail() {
   })
 }
 
+/**
+ * requirements/001 criterion 17: the server answers 202 whether or not that address has an
+ * account, and this hook must not learn anything the server refused to say. There is nothing
+ * to read in the response and nothing to branch on - which is the point, and why the success
+ * screen is worded the way it is.
+ */
+export function useRequestPasswordReset() {
+  return useMutation({
+    mutationFn: (email: string) =>
+      api.post<void>('/auth/forgot-password', { email }, { anonymous: true }),
+  })
+}
+
+/**
+ * Resetting signs you in, like verifying does: the response is a token pair, because whoever
+ * followed the link has just proved they own the address (criterion 19).
+ *
+ * Every other session has been revoked server-side by the time this resolves, so the tokens
+ * adopted here are the only live ones.
+ */
+export function useResetPassword() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { token: string; password: string }) =>
+      api.post<TokenPair>('/auth/reset-password', input, { anonymous: true }),
+    onSuccess: (tokens) => {
+      session.adopt(tokens)
+      void queryClient.invalidateQueries()
+    },
+  })
+}
+
 export function useSignIn() {
   const queryClient = useQueryClient()
   return useMutation({

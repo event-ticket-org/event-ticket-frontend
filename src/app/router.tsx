@@ -24,7 +24,13 @@ import { OrderPage } from '~/features/checkout/OrderPage'
 import { OrdersPage } from '~/features/tickets/OrdersPage'
 import { TicketsPage } from '~/features/tickets/TicketsPage'
 import { ScannerPage } from '~/features/scanner/ScannerPage'
-import { RegisterPage, SignInPage, VerifyEmailPage } from '~/features/auth/AuthPages'
+import {
+  ForgotPasswordPage,
+  RegisterPage,
+  ResetPasswordPage,
+  SignInPage,
+  VerifyEmailPage,
+} from '~/features/auth/AuthPages'
 import { NotFoundPage } from './pages'
 
 /**
@@ -43,6 +49,8 @@ export const router = createBrowserRouter([
       { path: '/sign-in', element: <SignInPage /> },
       { path: '/register', element: <RegisterPage /> },
       { path: '/verify-email', element: <VerifyEmailPage /> },
+      { path: '/forgot-password', element: <ForgotPasswordPage /> },
+      { path: '/reset-password', element: <ResetPasswordPage /> },
       { path: '/events/:eventId', element: <PublicEventPage /> },
       {
         element: <RequireSignedIn />,
