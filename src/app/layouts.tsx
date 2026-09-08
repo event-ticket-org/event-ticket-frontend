@@ -139,7 +139,6 @@ export function ManagerLayout() {
       aside={
         // Switching reissues the token, because the active Organization is a claim
         // inside it and never a parameter on a request (ADR-0004).
-        <div className="flex flex-wrap items-center gap-4">
         <select
           aria-label="Active organization"
           className="min-h-11 border-2 border-ink bg-paper px-3 py-2 text-body text-ink"
@@ -156,13 +155,6 @@ export function ManagerLayout() {
             </option>
           ))}
         </select>
-        {/* A shell with no way out is a trap, and this one had none: the admin shell has
-            carried a way back to the site since it was written, and the organizer's had
-            neither that nor sign-out. Somebody who clicked Manage could leave only by
-            pressing the browser's back button. */}
-        <NavLink to="/">Back to the app</NavLink>
-        <SignOutButton />
-        </div>
       }
     >
       <Outlet />
@@ -177,8 +169,7 @@ export function ManagerLayout() {
  */
 export function AdminLayout() {
   return (
-    <ManagerFrame home="/admin" title="Platform" nav={<NavLink to="/">Back to the app</NavLink>}
-                  aside={<SignOutButton />}>
+    <ManagerFrame home="/admin" title="Platform">
       <Outlet />
     </ManagerFrame>
   )
@@ -246,7 +237,19 @@ export function RequireSignedIn() {
   return <Outlet />
 }
 
-/** The manager shell's chrome, shared by the organizer's screens and the platform's. */
+/**
+ * The manager shell's chrome, shared by the organizer's screens and the platform's.
+ *
+ * **The way out is the frame's, not the caller's.** Three screens render this - an organizer
+ * with an Organization, an organizer with none, and a platform administrator - and the way out
+ * was passed in by each of them. Which meant the one that forgot had no way out at all: a
+ * person who registered, clicked Manage and had no Organization yet got a header containing
+ * the word MANAGE and nothing else, on the first screen they ever saw. Fixing that branch would
+ * have left the next one free to make the same mistake.
+ *
+ * So `nav` and `aside` are for what a screen adds. Leaving the shell is not something a screen
+ * decides.
+ */
 function ManagerFrame({
   children,
   nav,
@@ -270,7 +273,11 @@ function ManagerFrame({
             </Link>
             {nav}
           </div>
-          {aside}
+          <div className="flex flex-wrap items-center gap-4">
+            {aside}
+            <NavLink to="/">Back to the app</NavLink>
+            <SignOutButton />
+          </div>
         </nav>
       </header>
       <main className="mx-auto max-w-[1152px] px-4 py-8">{children}</main>
