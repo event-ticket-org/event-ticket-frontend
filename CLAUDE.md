@@ -147,6 +147,15 @@ used per row on the dashboard it drew display-sized zeros that shouted over ever
 money value in a column is `formatMoney` at the row's own size. And nothing at all when it is
 zero: "0 sold" beside "0 ₫" is the same fact twice, in a heavier typeface.
 
+**A shell's exits belong to the shell.** `ManagerFrame` renders "Back to the app" and "Sign
+out" itself; `nav` and `aside` are for what a screen *adds*. They used to be passed in by each
+of the three screens that render it, which meant the one that forgot had no way out at all -
+and the one that forgot was the first screen a new person ever sees: registered, no
+Organization yet, a header containing the word MANAGE and nothing else. It was reported, fixed
+in the two branches that had the problem visibly, and reported again from the third. Filling in
+a branch leaves the next branch free to forget; moving the thing into the frame does not.
+`manager-shell.test.tsx` renders each screen and looks for the way out.
+
 **A screen tells you what a person may see; the server decides it.** The dashboard does not ask
 for `/events` as Gate Staff, because that endpoint refuses them (requirements/007 criterion 13)
 - the question is not what to hide but what not to request, and a page that fires a call it
