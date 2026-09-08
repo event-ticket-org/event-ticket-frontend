@@ -10,6 +10,7 @@ import {
 } from './layouts'
 import { AdminPage } from '~/features/admin/AdminPage'
 import { CreateOrganizationPage } from '~/features/organizations/CreateOrganizationPage'
+import { DashboardPage } from '~/features/organizations/DashboardPage'
 import { TeamPage } from '~/features/organizations/TeamPage'
 import { EventOrdersPage } from '~/features/refunds/EventOrdersPage'
 import { VenuePage } from '~/features/venues/VenuePage'
@@ -24,7 +25,7 @@ import { OrdersPage } from '~/features/tickets/OrdersPage'
 import { TicketsPage } from '~/features/tickets/TicketsPage'
 import { ScannerPage } from '~/features/scanner/ScannerPage'
 import { RegisterPage, SignInPage, VerifyEmailPage } from '~/features/auth/AuthPages'
-import { NotFoundPage, PlaceholderPage } from './pages'
+import { NotFoundPage } from './pages'
 
 /**
  * Routes are grouped by the shell they belong to rather than by feature, because the
@@ -80,7 +81,7 @@ export const router = createBrowserRouter([
       {
         element: <ManagerLayout />,
         children: [
-          { path: '/manage', element: <PlaceholderPage what="The organization dashboard" slice="2" /> },
+          { path: '/manage', element: <DashboardPage /> },
           { path: '/manage/team', element: <TeamPage /> },
           {
             element: <RequireManager />,
