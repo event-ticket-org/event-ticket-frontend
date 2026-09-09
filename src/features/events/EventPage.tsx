@@ -191,11 +191,14 @@ function Details({ eventId, event }: { eventId: string; event: Event }) {
 /**
  * The start time and the admission window move together, in one request.
  *
+ * <p>Exported for `schedule-form.test.tsx`. `schedule.ts` proves the rules; this component is
+ * where they either reach a person or do not, and that half is not provable from the rules.
+ *
  * `Event.reschedule` validates all three at once, so moving the start on its own would be
  * refused against the *old* window - which is how a legitimate reschedule gets rejected for
  * a reason nobody can act on.
  */
-function Schedule({
+export function Schedule({
   eventId,
   event,
   venue,
