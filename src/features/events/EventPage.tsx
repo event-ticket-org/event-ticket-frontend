@@ -19,6 +19,7 @@ import { useVenue } from '~/features/venues/venue-hooks'
 import { useCloseSales, useEvent, usePublishEvent, useUpdateEvent } from './event-hooks'
 import { useSetPricingTiers } from './pricing-hooks'
 import { instantFromZoned, zonedInputValue } from './zoned-time'
+import { hasProblem, scheduleProblems } from './schedule'
 
 export function EventPage() {
   const { eventId = '' } = useParams()
@@ -212,6 +213,9 @@ function Schedule({
   })
 
   const published = event.status === 'PUBLISHED' || event.status === 'SALES_CLOSED'
+  // Recomputed on every keystroke rather than on submit, which is the whole point: a person
+  // should be told while they are still looking at the field they got wrong.
+  const problems = scheduleProblems(form, { timeZone: zone, published, now: new Date() })
   const startMoved = form.startsAt !== zonedInputValue(event.startsAt, zone)
   const changed =
     startMoved ||
@@ -226,6 +230,9 @@ function Schedule({
         className="space-y-6"
         onSubmit={(submit) => {
           submit.preventDefault()
+          // The server refuses these too. Stopping here saves a round trip and, more to the
+          // point, keeps the answer beside the field instead of at the top of the form.
+          if (hasProblem(problems)) return
           update.mutate({
             startsAt: instantFromZoned(form.startsAt, zone),
             ...(form.doorsOpenAt
@@ -252,7 +259,7 @@ function Schedule({
         )}
 
         <div className="grid gap-6 sm:grid-cols-3">
-          <Field label="Doors open" hint="When admission begins.">
+          <Field label="Doors open" hint="When admission begins." problem={problems.doorsOpenAt}>
             <input
               className={inputClass}
               type="datetime-local"
@@ -260,7 +267,7 @@ function Schedule({
               onChange={(change) => setForm({ ...form, doorsOpenAt: change.target.value })}
             />
           </Field>
-          <Field label="Starts">
+          <Field label="Starts" problem={problems.startsAt}>
             <input
               className={inputClass}
               type="datetime-local"
@@ -269,7 +276,7 @@ function Schedule({
               onChange={(change) => setForm({ ...form, startsAt: change.target.value })}
             />
           </Field>
-          <Field label="Ends" hint="When admission closes.">
+          <Field label="Ends" hint="When admission closes." problem={problems.endsAt}>
             <input
               className={inputClass}
               type="datetime-local"
@@ -291,7 +298,11 @@ function Schedule({
         )}
 
         <div className="flex justify-end">
-          <Button className="w-auto" disabled={!changed} pending={update.isPending}>
+          <Button
+            className="w-auto"
+            disabled={!changed || hasProblem(problems)}
+            pending={update.isPending}
+          >
             Save schedule
           </Button>
         </div>
