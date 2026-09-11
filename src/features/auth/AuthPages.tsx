@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { Button, Field, Problem, inputClass } from '~/shared/ui'
 import {
@@ -129,7 +129,26 @@ export function RegisterPage() {
   )
 }
 
-/** The destination of the emailed link. Verifying signs the person in and moves them on. */
+/**
+ * The destination of the emailed link. Verifying signs the person in and moves them on.
+ *
+ * This page acts on arrival, which makes it the one place in the app where a repeated effect is
+ * a repeated *side effect*. React invokes effects twice in development, so this sent the same
+ * token twice about five milliseconds apart; a verification token may only be spent once, so the
+ * second request was always refused, and the refusal is what rendered - both requests share one
+ * mutation's state and the loser settles last. Someone who had just clicked a working link was
+ * told it "has expired or has already been used", on a page whose header had already switched to
+ * the signed-in navigation.
+ *
+ * `sentFor` makes it one request per token. A ref rather than state because it must not itself
+ * cause a render, and keyed by the token rather than a bare boolean so that arriving with a
+ * different link still verifies.
+ *
+ * Worth being clear that the server was not at fault and was not changed for this: it answered
+ * one 200 and one 410, and the 410 was true - that token really had just been spent. Nor is this
+ * only a development-mode artefact. A double click, a mail client prefetching the link, and a
+ * browser retrying all produce two requests in a production build. The page has to send one.
+ */
 export function VerifyEmailPage() {
   const [params] = useSearchParams()
   const navigate = useNavigate()
@@ -137,10 +156,11 @@ export function VerifyEmailPage() {
   const token = params.get('token')
 
   const { mutate } = verify
+  const sentFor = useRef<string | null>(null)
   useEffect(() => {
-    if (token) {
-      mutate(token, { onSuccess: () => void navigate('/', { replace: true }) })
-    }
+    if (!token || sentFor.current === token) return
+    sentFor.current = token
+    mutate(token, { onSuccess: () => void navigate('/', { replace: true }) })
   }, [token, mutate, navigate])
 
   return (
