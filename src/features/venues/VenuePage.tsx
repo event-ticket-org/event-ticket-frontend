@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
+import { useCities } from '~/api/vocabulary-hooks'
 import { Button, Card, Field, Problem, inputClass } from '~/shared/ui'
 import { SeatMapEditor } from './seat-map/SeatMapEditor'
 import {
@@ -76,18 +77,19 @@ function VenueDetails({
   venue,
 }: {
   venueId: string
-  venue: { name: string; city: string; address?: string; timezone: string }
+  venue: { name: string; citySlug: string; address?: string; timezone: string }
 }) {
   const update = useUpdateVenue(venueId)
+  const cities = useCities()
   const [form, setForm] = useState({
     name: venue.name,
-    city: venue.city,
+    citySlug: venue.citySlug,
     address: venue.address ?? '',
     timezone: venue.timezone,
   })
   const changed =
     form.name !== venue.name ||
-    form.city !== venue.city ||
+    form.citySlug !== venue.citySlug ||
     form.address !== (venue.address ?? '') ||
     form.timezone !== venue.timezone
 
@@ -106,9 +108,16 @@ function VenueDetails({
             <input className={inputClass} value={form.name} maxLength={200} required
               onChange={(change) => setForm({ ...form, name: change.target.value })} />
           </Field>
+          {/* A choice rather than a box, because the public listing groups and counts by
+              this (requirements/009 criterion 13). Two spellings of Hà Nội are two cities to
+              anything that counts, and a free-text field is how you get two spellings. */}
           <Field label="City">
-            <input className={inputClass} value={form.city} maxLength={100} required
-              onChange={(change) => setForm({ ...form, city: change.target.value })} />
+            <select className={inputClass} value={form.citySlug} required
+              onChange={(change) => setForm({ ...form, citySlug: change.target.value })}>
+              {cities.data?.map((city) => (
+                <option key={city.slug} value={city.slug}>{city.name}</option>
+              ))}
+            </select>
           </Field>
           <Field label="Address">
             <input className={inputClass} value={form.address} maxLength={500}

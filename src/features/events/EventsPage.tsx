@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import type { EventStatus, Venue } from '~/api/types'
+import { useCategories } from '~/api/vocabulary-hooks'
 import { formatInZone } from '~/shared/format'
 import {
   Button,
@@ -147,7 +148,9 @@ export function EventsPage() {
 function CreateEvent({ onDone }: { onDone: () => void }) {
   const create = useCreateEvent()
   const venues = useVenues()
+  const categories = useCategories()
   const [venueId, setVenueId] = useState('')
+  const [categorySlug, setCategorySlug] = useState('')
   const [title, setTitle] = useState('')
   const [startsAt, setStartsAt] = useState('')
 
@@ -167,6 +170,7 @@ function CreateEvent({ onDone }: { onDone: () => void }) {
             {
               title,
               venueId: venue.id,
+              categorySlug,
               // Typed in the venue's clock, sent as the instant it names. Reading this with
               // `new Date(startsAt)` would use the browser's zone, which is right only for
               // as long as the person editing happens to be in the same country.
@@ -191,6 +195,27 @@ function CreateEvent({ onDone }: { onDone: () => void }) {
               autoFocus
               onChange={(change) => setTitle(change.target.value)}
             />
+          </Field>
+          {/* Required, and it stays required: a nullable category means every row of the
+              public listing grows a branch for the events that skipped the question, and they
+              fall out of all of them silently (requirements/009 criterion 12). "Khác" is in
+              the list for the ones that genuinely fit nothing else. */}
+          <Field label="Category" hint="How this appears on the public listing. Khác if nothing else fits.">
+            <select
+              className={inputClass}
+              value={categorySlug}
+              required
+              onChange={(change) => setCategorySlug(change.target.value)}
+            >
+              <option value="" disabled>
+                Choose a category
+              </option>
+              {categories.data?.map((option) => (
+                <option key={option.slug} value={option.slug}>
+                  {option.name}
+                </option>
+              ))}
+            </select>
           </Field>
           <Field label="Venue" hint="Fixed once the event exists — its seat map is what sells.">
             <select

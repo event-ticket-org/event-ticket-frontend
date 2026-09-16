@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { endOfDay, startOfDay } from './public-hooks'
+import { endOfDay, startOfDay, thisMonth, thisWeekend } from './public-hooks'
 
 /**
  * Asserted as properties rather than as literal strings: these run in whatever zone the
@@ -31,5 +31,66 @@ describe('reading a typed date as an instant', () => {
 
   it('sends an instant, which is what the contract asks for', () => {
     expect(startOfDay('2026-09-10')).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
+  })
+})
+
+/**
+ * The two named ranges, which the home page's tabs send instead of typed dates.
+ *
+ * Both are computed in the browser's timezone, deliberately and for the same reason the typed
+ * filters are: a weekend is a weekend where the reader is standing. Reading it in a venue's
+ * zone would make the same tab mean different days depending on which events were in the list.
+ */
+describe('this weekend', () => {
+  it('runs Saturday to the end of Sunday, from midweek', () => {
+    // A Wednesday.
+    const range = thisWeekend(new Date(2026, 8, 16, 11, 0))
+
+    expect(new Date(range.startsAfter).getDay()).toBe(6)
+    expect(new Date(range.startsBefore).getDay()).toBe(0)
+    expect(new Date(range.startsBefore).getHours()).toBe(23)
+  })
+
+  it('means this weekend on a Saturday, not the next one', () => {
+    const saturday = new Date(2026, 8, 19, 9, 0)
+    const range = thisWeekend(saturday)
+
+    expect(new Date(range.startsAfter).getDate()).toBe(19)
+  })
+
+  it('means this weekend on a Sunday too', () => {
+    const sunday = new Date(2026, 8, 20, 9, 0)
+    const range = thisWeekend(sunday)
+
+    // Saturday has already been, so the range starts now rather than yesterday: a bound in the
+    // past asks the server for events it refuses to list, and reads as a tab that does nothing.
+    expect(new Date(range.startsAfter).getDate()).toBe(20)
+    expect(new Date(range.startsBefore).getDate()).toBe(20)
+  })
+
+  it('never begins in the past', () => {
+    const saturdayAfternoon = new Date(2026, 8, 19, 15, 0)
+    const range = thisWeekend(saturdayAfternoon)
+
+    expect(new Date(range.startsAfter).getTime()).toBeGreaterThanOrEqual(
+      saturdayAfternoon.getTime(),
+    )
+  })
+})
+
+describe('this month', () => {
+  it('runs from now to the last day of the month', () => {
+    const range = thisMonth(new Date(2026, 8, 16, 11, 0))
+
+    expect(new Date(range.startsAfter).getDate()).toBe(16)
+    expect(new Date(range.startsBefore).getMonth()).toBe(8)
+    expect(new Date(range.startsBefore).getDate()).toBe(30)
+  })
+
+  it('handles a month that does not have thirty days', () => {
+    const range = thisMonth(new Date(2026, 1, 3, 11, 0))
+
+    expect(new Date(range.startsBefore).getMonth()).toBe(1)
+    expect(new Date(range.startsBefore).getDate()).toBe(28)
   })
 })

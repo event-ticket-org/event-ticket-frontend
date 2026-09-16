@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import { Link } from 'react-router'
 import type { PublicEventSummary } from '~/api/types'
+import { useCategories, useCities } from '~/api/vocabulary-hooks'
 import { formatMoney, monthInZone, timeUntil } from '~/shared/format'
 import {
   Button,
@@ -12,10 +13,47 @@ import {
   cx,
   inputClass,
 } from '~/shared/ui'
-import { endOfDay, startOfDay, usePublicEvents } from './public-hooks'
+import { EventRail } from './EventRail'
+import {
+  endOfDay,
+  startOfDay,
+  thisMonth,
+  thisWeekend,
+  usePublicEvents,
+} from './public-hooks'
 
-type Filters = { q: string; city: string; from: string; to: string }
-const NOTHING: Filters = { q: '', city: '', from: '', to: '' }
+type Filters = {
+  q: string
+  citySlug: string
+  categorySlug: string
+  from: string
+  to: string
+  /** A named range, which replaces `from`/`to` rather than joining them. */
+  when: 'any' | 'weekend' | 'month'
+}
+const NOTHING: Filters = {
+  q: '',
+  citySlug: '',
+  categorySlug: '',
+  from: '',
+  to: '',
+  when: 'any',
+}
+
+/**
+ * How many events a category needs before it gets a row of its own.
+ *
+ * requirements/009 criterion 16: a row too short to look ranked or selected is not shown at
+ * all. Five is the number below which a horizontal rail reads as a fault - three cards and a
+ * gap look like something failed to load, where the same three inside the listing below look
+ * like three events.
+ *
+ * The whole home page turns on this. With the ten events currently published no category
+ * clears it, so the page is the filter strip and the listing - which is the intended behaviour
+ * and not a fallback: the rails light up on their own as the catalogue fills, and nobody has
+ * to remember to switch them on.
+ */
+const RAIL_MINIMUM = 5
 
 /**
  * The share of an Event's seats below which how many are left is worth saying out loud.
@@ -47,18 +85,31 @@ export function PublicEventsPage() {
   const [showFilters, setShowFilters] = useState(false)
   const panelId = useId()
 
+  const categories = useCategories()
+  const cities = useCities()
+  const range = dateRange(applied)
+
   const events = usePublicEvents({
     q: applied.q || undefined,
-    city: applied.city || undefined,
-    startsAfter: startOfDay(applied.from),
-    startsBefore: endOfDay(applied.to),
+    citySlug: applied.citySlug || undefined,
+    categorySlug: applied.categorySlug || undefined,
+    ...range,
   })
   const rows = events.data?.pages.flatMap((page) => page.items ?? []) ?? []
-  const narrowed = countNarrowing(applied)
+  const narrowed = countNarrowing(applied, categories.data ?? [], cities.data ?? [])
+
+  // Counts come with the first page only - they are the same for every page of a listing, so
+  // the server stops computing them once a cursor is involved (requirements/009 criterion 17).
+  const facets = events.data?.pages[0]?.categoryFacets ?? []
+
+  // Rails are for browsing, not for reading a result. Once somebody has narrowed the listing
+  // they are looking for the thing they asked for, and a row of "you might also like" above it
+  // is the site changing the subject.
+  const browsing = narrowed.length === 0
 
   function apply(next: Filters) {
     setForm(next)
-    setApplied({ ...next, q: next.q.trim(), city: next.city.trim() })
+    setApplied({ ...next, q: next.q.trim() })
   }
 
   return (
@@ -102,6 +153,83 @@ export function PublicEventsPage() {
           </Button>
         </div>
 
+        {/*
+          Category first, because it is the question somebody browsing actually has. The counts
+          beside each are what the listing would return under the filters already applied -
+          criterion 17 - which is why a zero is shown rather than the chip being hidden: a
+          greyed chip reading "Thể thao 0" says the other filters emptied it, where a chip
+          missing from the strip reads as a category that does not exist.
+        */}
+        <ul className="flex flex-wrap gap-2">
+          <li>
+            <Chip
+              pressed={applied.categorySlug === ''}
+              onClick={() => apply({ ...applied, categorySlug: '' })}
+            >
+              Everything
+            </Chip>
+          </li>
+          {categories.data?.map((category) => {
+            const count = facets.find((facet) => facet.slug === category.slug)?.count
+            return (
+              <li key={category.slug}>
+                <Chip
+                  pressed={applied.categorySlug === category.slug}
+                  disabled={count === 0}
+                  onClick={() => apply({ ...applied, categorySlug: category.slug })}
+                >
+                  {category.name}
+                  {count !== undefined && (
+                    <span className="ml-2 font-numeric text-ink-soft">{count}</span>
+                  )}
+                </Chip>
+              </li>
+            )
+          })}
+        </ul>
+
+        {/*
+          When, as three named ranges rather than two date boxes. The boxes are still there for
+          anybody who wants a specific week; these are the three answers people actually give.
+        */}
+        <div className="flex flex-wrap items-center gap-3">
+          <Segmented
+            value={applied.when}
+            onChange={(when) => apply({ ...applied, when, from: '', to: '' })}
+            options={[
+              { value: 'any', label: 'Any time' },
+              { value: 'weekend', label: 'This weekend' },
+              { value: 'month', label: 'This month' },
+            ]}
+          />
+        </div>
+
+        {/*
+          Cities as their own row, and only three of them plus "Everywhere". Ticketbox puts
+          four tiles at the foot of a page that is already long; here the catalogue is small
+          enough that a city is a filter somebody uses before scrolling, not after.
+        */}
+        <ul className="flex flex-wrap gap-2">
+          <li>
+            <Chip
+              pressed={applied.citySlug === ''}
+              onClick={() => apply({ ...applied, citySlug: '' })}
+            >
+              Everywhere
+            </Chip>
+          </li>
+          {cities.data?.map((city) => (
+            <li key={city.slug}>
+              <Chip
+                pressed={applied.citySlug === city.slug}
+                onClick={() => apply({ ...applied, citySlug: city.slug })}
+              >
+                {city.name}
+              </Chip>
+            </li>
+          ))}
+        </ul>
+
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
@@ -113,7 +241,7 @@ export function PublicEventsPage() {
             aria-controls={panelId}
             onClick={() => setShowFilters(!showFilters)}
           >
-            City and dates
+            Exact dates
           </button>
 
           {/*
@@ -129,7 +257,7 @@ export function PublicEventsPage() {
               // From `applied`, not from `form`. A chip removes one of the filters that are
               // narrowing the list right now; basing it on the form would also commit whatever
               // somebody had half-typed into the search box and not submitted.
-              onClick={() => apply({ ...applied, [filter.key]: '' })}
+              onClick={() => apply({ ...applied, ...filter.clear })}
             >
               <span>{filter.label}</span>
               <span aria-hidden="true">✕</span>
@@ -140,16 +268,6 @@ export function PublicEventsPage() {
 
         <div id={panelId} hidden={!showFilters} className="space-y-3 border-2 border-ink p-4">
           <div className="flex flex-wrap items-end gap-3">
-            <div className="min-w-56 flex-1">
-              <Field label="City">
-                <input
-                  className={inputClass}
-                  value={form.city}
-                  placeholder="Hà Nội"
-                  onChange={(change) => setForm({ ...form, city: change.target.value })}
-                />
-              </Field>
-            </div>
             <div className="min-w-36 flex-1">
               <Field label="From">
                 <input
@@ -157,7 +275,9 @@ export function PublicEventsPage() {
                   type="date"
                   value={form.from}
                   max={form.to || undefined}
-                  onChange={(change) => setForm({ ...form, from: change.target.value })}
+                  onChange={(change) =>
+                    setForm({ ...form, from: change.target.value, when: 'any' })
+                  }
                 />
               </Field>
             </div>
@@ -168,7 +288,9 @@ export function PublicEventsPage() {
                   type="date"
                   value={form.to}
                   min={form.from || undefined}
-                  onChange={(change) => setForm({ ...form, to: change.target.value })}
+                  onChange={(change) =>
+                    setForm({ ...form, to: change.target.value, when: 'any' })
+                  }
                 />
               </Field>
             </div>
@@ -197,6 +319,26 @@ export function PublicEventsPage() {
       </form>
 
       <Problem error={events.error} />
+
+      {/*
+        One row per category with enough events to fill one. Nothing is fetched for a row that
+        will not appear - the facet counts above already said which those are - so on the
+        catalogue this ships against these cost no requests at all and render nothing.
+      */}
+      {browsing &&
+        categories.data?.map((category) => (
+          <EventRail
+            key={category.slug}
+            categorySlug={category.slug}
+            title={category.name}
+            minimum={RAIL_MINIMUM}
+            count={facets.find((facet) => facet.slug === category.slug)?.count ?? 0}
+          />
+        ))}
+
+      {browsing && facets.some((facet) => facet.count >= RAIL_MINIMUM) && (
+        <h2 className="border-b-2 border-ink pb-1 text-label uppercase">Everything on sale</h2>
+      )}
 
       {events.isLoading ? (
         <Loading />
@@ -385,20 +527,132 @@ function nearlyGone(event: PublicEventSummary): boolean {
   return event.seatsTotal > 0 && event.seatsAvailable / event.seatsTotal <= NEARLY_GONE
 }
 
-/** The filters currently narrowing the list, as the chips that can remove them. */
-function countNarrowing(applied: Filters): { key: keyof Filters; label: string }[] {
-  const chips: { key: keyof Filters; label: string }[] = []
-  if (applied.q) {
-    chips.push({ key: 'q', label: `“${applied.q}”` })
+/**
+ * A filter as a pressed-or-not control.
+ *
+ * `aria-pressed` rather than a radio group, because these are several independent toggles that
+ * happen to look alike - category and city do not exclude one another, and a screen reader
+ * told they were one group would be told something untrue about how they behave.
+ *
+ * Disabled when the count is zero: the chip stays visible so a visitor can see the category
+ * exists and that their other filters emptied it, and stays unusable because tapping it would
+ * produce an empty listing they did not ask for.
+ */
+function Chip({
+  children,
+  pressed,
+  disabled,
+  onClick,
+}: {
+  children: React.ReactNode
+  pressed: boolean
+  disabled?: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={pressed}
+      disabled={disabled}
+      onClick={onClick}
+      className={cx(
+        'min-h-11 border-2 border-ink px-3 text-body',
+        pressed ? 'bg-ink text-paper' : 'bg-paper',
+        disabled && 'opacity-40',
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
+/** Three named date ranges, exactly one of which is on. */
+function Segmented<T extends string>({
+  value,
+  onChange,
+  options,
+}: {
+  value: T
+  onChange: (value: T) => void
+  options: { value: T; label: string }[]
+}) {
+  return (
+    <div className="flex" role="group">
+      {options.map((option, index) => (
+        <button
+          key={option.value}
+          type="button"
+          aria-pressed={value === option.value}
+          onClick={() => onChange(option.value)}
+          className={cx(
+            'min-h-11 border-2 border-ink px-4 text-label uppercase',
+            index > 0 && '-ml-0.5',
+            value === option.value ? 'bg-ink text-paper' : 'bg-paper',
+          )}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * The applied filters as the two instants the request carries.
+ *
+ * A named range and a typed one are the same parameters, so they cannot both be on: choosing
+ * a tab clears the boxes and typing in a box clears the tab. Merging them would produce an
+ * intersection nobody asked for - "this weekend, but also from the 14th" is not a thing
+ * anybody means.
+ */
+function dateRange(applied: Filters): { startsAfter?: string; startsBefore?: string } {
+  if (applied.when === 'weekend') {
+    return thisWeekend()
   }
-  if (applied.city) {
-    chips.push({ key: 'city', label: applied.city })
+  if (applied.when === 'month') {
+    return thisMonth()
+  }
+  return { startsAfter: startOfDay(applied.from), startsBefore: endOfDay(applied.to) }
+}
+
+/**
+ * The filters currently narrowing the list, as the chips that can remove them.
+ *
+ * Category and city are shown by name and not by slug: the slug is what the request carries
+ * and `tp-ho-chi-minh` is not what anybody pressed.
+ */
+function countNarrowing(
+  applied: Filters,
+  categories: { slug: string; name: string }[],
+  cities: { slug: string; name: string }[],
+): { key: keyof Filters; label: string; clear: Partial<Filters> }[] {
+  const chips: { key: keyof Filters; label: string; clear: Partial<Filters> }[] = []
+  if (applied.q) {
+    chips.push({ key: 'q', label: `“${applied.q}”`, clear: { q: '' } })
+  }
+  if (applied.categorySlug) {
+    const name = categories.find((c) => c.slug === applied.categorySlug)?.name
+    chips.push({
+      key: 'categorySlug',
+      label: name ?? applied.categorySlug,
+      clear: { categorySlug: '' },
+    })
+  }
+  if (applied.citySlug) {
+    const name = cities.find((c) => c.slug === applied.citySlug)?.name
+    chips.push({ key: 'citySlug', label: name ?? applied.citySlug, clear: { citySlug: '' } })
+  }
+  if (applied.when === 'weekend') {
+    chips.push({ key: 'when', label: 'This weekend', clear: { when: 'any' } })
+  }
+  if (applied.when === 'month') {
+    chips.push({ key: 'when', label: 'This month', clear: { when: 'any' } })
   }
   if (applied.from) {
-    chips.push({ key: 'from', label: `From ${applied.from}` })
+    chips.push({ key: 'from', label: `From ${applied.from}`, clear: { from: '' } })
   }
   if (applied.to) {
-    chips.push({ key: 'to', label: `To ${applied.to}` })
+    chips.push({ key: 'to', label: `To ${applied.to}`, clear: { to: '' } })
   }
   return chips
 }

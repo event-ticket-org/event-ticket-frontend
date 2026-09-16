@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
+import { useCities } from '~/api/vocabulary-hooks'
 import { Button, Card, EmptyState, Field, Problem, cx, inputClass } from '~/shared/ui'
 import { useCreateVenue, useVenues } from './venue-hooks'
 
@@ -70,8 +71,9 @@ export function VenuesPage() {
 
 function CreateVenue({ onDone }: { onDone: () => void }) {
   const create = useCreateVenue()
+  const cities = useCities()
   const [name, setName] = useState('')
-  const [city, setCity] = useState('')
+  const [citySlug, setCitySlug] = useState('')
   const [address, setAddress] = useState('')
   const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE)
 
@@ -82,7 +84,7 @@ function CreateVenue({ onDone }: { onDone: () => void }) {
         onSubmit={(submit) => {
           submit.preventDefault()
           create.mutate(
-            { name, city, address: address || undefined, timezone },
+            { name, citySlug, address: address || undefined, timezone },
             { onSuccess: onDone },
           )
         }}
@@ -94,9 +96,16 @@ function CreateVenue({ onDone }: { onDone: () => void }) {
             <input className={inputClass} value={name} maxLength={200} required autoFocus
               onChange={(change) => setName(change.target.value)} />
           </Field>
-          <Field label="City" hint="A field of its own, because the public listing filters on it.">
-            <input className={inputClass} value={city} maxLength={100} required
-              onChange={(change) => setCity(change.target.value)} />
+          {/* A choice, not a box. The listing groups and counts by this, and two spellings
+              of Hà Nội are two cities to anything that counts. */}
+          <Field label="City" hint="The listing groups and counts by this, so it is a choice.">
+            <select className={inputClass} value={citySlug} required
+              onChange={(change) => setCitySlug(change.target.value)}>
+              <option value="" disabled>Choose a city</option>
+              {cities.data?.map((option) => (
+                <option key={option.slug} value={option.slug}>{option.name}</option>
+              ))}
+            </select>
           </Field>
           <Field label="Address">
             <input className={inputClass} value={address} maxLength={500}
