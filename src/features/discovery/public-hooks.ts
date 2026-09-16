@@ -1,7 +1,13 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { api } from '~/api/client'
 import { nextPageParam, pageQuery } from '~/api/paging'
-import type { EventSeatMap, PublicEvent, PublicEventPage } from '~/api/types'
+import type {
+  EventSeatMap,
+  PublicEvent,
+  PublicEventPage,
+  PublicEventSummary,
+  TrendingEvent,
+} from '~/api/types'
 
 /**
  * Everything here is anonymous. `anonymous: true` sends no bearer, so an expired token in
@@ -139,6 +145,33 @@ function atEndOfDay(date: Date): string {
 
 function maxInstant(a: Date, b: string): string {
   return a.toISOString() > b ? a.toISOString() : b
+}
+
+/**
+ * The curated row, and the ranked one.
+ *
+ * Both answer an empty array when they are not being shown, and the server decides that rather
+ * than each client re-implementing it (requirements/009 criterion 16). Empty means draw
+ * nothing - there is no such thing as a featured row that exists and holds nothing, so there is
+ * no empty state to design and no heading to leave hanging over a gap.
+ *
+ * Not held for the session like the vocabularies are. A curated row is scheduled, so it changes
+ * on a clock nobody here can see, and a chart of what sold this week is stale the moment it is
+ * a day old. The default staleness is right for both; what would be wrong is pinning them.
+ */
+export function useFeaturedEvents() {
+  return useQuery({
+    queryKey: ['public', 'featured'],
+    queryFn: () =>
+      api.get<PublicEventSummary[]>('/public/featured-events', { anonymous: true }),
+  })
+}
+
+export function useTrendingEvents() {
+  return useQuery({
+    queryKey: ['public', 'trending'],
+    queryFn: () => api.get<TrendingEvent[]>('/public/trending-events', { anonymous: true }),
+  })
 }
 
 export function usePublicEvent(eventId: string) {

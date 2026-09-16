@@ -14,6 +14,8 @@ import {
   inputClass,
 } from '~/shared/ui'
 import { EventRail } from './EventRail'
+import { Hero } from './Hero'
+import { TrendingRail } from './TrendingRail'
 import {
   endOfDay,
   startOfDay,
@@ -114,6 +116,16 @@ export function PublicEventsPage() {
 
   return (
     <div className="space-y-8">
+      {/*
+        The hero sits above the heading rather than under it, which is the one place this page
+        follows the reference exactly: the first thing on a discovery page should be something
+        to go to, not a label for the page you are already on.
+
+        Only while browsing. Somebody who has searched is looking for what they asked for, and
+        a curated banner above their results is the site changing the subject.
+      */}
+      {browsing && <Hero />}
+
       <div>
         <h1 className="text-display">What&rsquo;s on</h1>
         <p className="mt-2 max-w-[68ch] text-body text-ink-soft">
@@ -325,6 +337,8 @@ export function PublicEventsPage() {
         will not appear - the facet counts above already said which those are - so on the
         catalogue this ships against these cost no requests at all and render nothing.
       */}
+      {browsing && <TrendingRail />}
+
       {browsing &&
         categories.data?.map((category) => (
           <EventRail
