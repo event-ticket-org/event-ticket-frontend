@@ -10,7 +10,8 @@ import type { EventSeatMap, PublicEvent, PublicEventPage } from '~/api/types'
  */
 export type PublicEventFilters = {
   q?: string
-  city?: string
+  citySlug?: string
+  categorySlug?: string
   startsAfter?: string
   startsBefore?: string
 }
@@ -43,23 +44,12 @@ export function endOfDay(date: string): string | undefined {
  * at exactly the moment the product got better.
  */
 export function usePublicEvents(filters: PublicEventFilters) {
-  const query =
-    (filters.q ? `&q=${encodeURIComponent(filters.q)}` : '') +
-    (filters.city ? `&city=${encodeURIComponent(filters.city)}` : '') +
-    (filters.startsAfter ? `&startsAfter=${encodeURIComponent(filters.startsAfter)}` : '') +
-    (filters.startsBefore ? `&startsBefore=${encodeURIComponent(filters.startsBefore)}` : '')
+  const query = filterQuery(filters)
 
   return useInfiniteQuery({
     // Every filter is in the key, so a changed one is a different list rather than the old
     // list with new pages appended to it.
-    queryKey: [
-      'public',
-      'events',
-      filters.q ?? '',
-      filters.city ?? '',
-      filters.startsAfter ?? '',
-      filters.startsBefore ?? '',
-    ],
+    queryKey: ['public', 'events', filterQuery(filters)],
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) =>
       api.get<PublicEventPage>(`/public/events?${pageQuery(pageParam)}${query}`, {
@@ -67,6 +57,88 @@ export function usePublicEvents(filters: PublicEventFilters) {
       }),
     getNextPageParam: nextPageParam,
   })
+}
+
+/**
+ * One category's events, for a rail.
+ *
+ * Not an infinite query: a rail is a fixed number of cards with no "load more" in it, and the
+ * whole listing is below it for anybody who wants the rest.
+ *
+ * `enabled` is what keeps this from costing anything on a small catalogue. The home page only
+ * mounts a rail whose facet count clears the threshold, so with ten events in the database
+ * this hook is never called at all - see `RAIL_MINIMUM` in PublicEventsPage.
+ */
+export function useCategoryRail(categorySlug: string, limit: number, enabled: boolean) {
+  return useQuery({
+    queryKey: ['public', 'events', 'rail', categorySlug, limit],
+    queryFn: () =>
+      api.get<PublicEventPage>(
+        `/public/events?limit=${limit}&categorySlug=${encodeURIComponent(categorySlug)}`,
+        { anonymous: true },
+      ),
+    enabled,
+  })
+}
+
+/**
+ * The filters as a query string, and the identity of the list they produce.
+ *
+ * One function for both, so a filter that narrows the request can never fail to change the
+ * cache key - which would serve one filter's results under another's name until something
+ * refetched.
+ */
+function filterQuery(filters: PublicEventFilters): string {
+  return (
+    (filters.q ? `&q=${encodeURIComponent(filters.q)}` : '') +
+    (filters.citySlug ? `&citySlug=${encodeURIComponent(filters.citySlug)}` : '') +
+    (filters.categorySlug ? `&categorySlug=${encodeURIComponent(filters.categorySlug)}` : '') +
+    (filters.startsAfter ? `&startsAfter=${encodeURIComponent(filters.startsAfter)}` : '') +
+    (filters.startsBefore ? `&startsBefore=${encodeURIComponent(filters.startsBefore)}` : '')
+  )
+}
+
+/**
+ * "This weekend" and "This month", as the instants they name.
+ *
+ * The browser's timezone, for the same reason the typed date filters use it: a weekend is a
+ * weekend where the reader is standing. Reading it in a venue's zone would make the same tab
+ * mean different days depending on which events happened to be in the list.
+ *
+ * The weekend runs Saturday to Sunday, and on a Saturday or Sunday it means *this* one rather
+ * than the next - somebody tapping it on a Saturday morning is asking about today.
+ */
+export function thisWeekend(now = new Date()): { startsAfter: string; startsBefore: string } {
+  const day = now.getDay() // 0 Sunday … 6 Saturday
+  const toSaturday = day === 0 ? -1 : 6 - day
+  const saturday = new Date(now)
+  saturday.setDate(now.getDate() + toSaturday)
+  const sunday = new Date(saturday)
+  sunday.setDate(saturday.getDate() + 1)
+
+  return {
+    // Never earlier than now: a weekend that started yesterday would ask the server for events
+    // in the past, which it refuses to list anyway, and would read as a tab that does nothing.
+    startsAfter: maxInstant(now, atStartOfDay(saturday)),
+    startsBefore: atEndOfDay(sunday),
+  }
+}
+
+export function thisMonth(now = new Date()): { startsAfter: string; startsBefore: string } {
+  const last = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  return { startsAfter: now.toISOString(), startsBefore: atEndOfDay(last) }
+}
+
+function atStartOfDay(date: Date): string {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).toISOString()
+}
+
+function atEndOfDay(date: Date): string {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999).toISOString()
+}
+
+function maxInstant(a: Date, b: string): string {
+  return a.toISOString() > b ? a.toISOString() : b
 }
 
 export function usePublicEvent(eventId: string) {

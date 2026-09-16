@@ -890,6 +890,43 @@ must never be mistaken for an answer. At 500 ms nobody reads it; the operator se
 something has gone slow, and then it is the difference between a scanner that is working and a
 scanner that ignored them.
 
+### EventRail — public discovery
+
+A horizontal row of events in one category, above the listing on the home page. New with
+requirements/009's revision, and the first component here that scrolls sideways.
+
+**The card is a different card.** A rail card carries four things — cover, title, date, `from`
+price — because it is read at a glance while somebody scrolls past. The listing card keeps
+venue, city and organizer because it is a full-width block with room for them; the same three
+lines inside a 256px rail card are grey text nobody reads sideways. Two cards, not one card with
+a `compact` prop: the difference is what they say, not how big they are.
+
+**It scrolls, it does not wrap.** `overflow-x-auto` with `snap-x snap-mandatory` and fixed-width
+cards. A grid that reflowed to two rows on a narrow screen would stop being a rail and become a
+short, badly-cropped listing. The row bleeds to the page edge (`-mx-4 px-4`) so the last card is
+visibly cut rather than ending in a margin that reads as the end of the content.
+
+**A rail may decline to exist.** Below five events it renders nothing at all — requirements/009
+criterion 16. Three cards and a gap look like a fetch that failed; the same three events inside
+the listing below look like three events. This is the only component here that is allowed to
+return nothing when it has data, and it is why the home page needs no separate "small
+catalogue" layout: the rails light up as the catalogue fills and nobody switches them on.
+
+**Sold out still says so**, in the same bordered chip the listing uses. The obvious reference
+for this pattern omits it; an event somebody cannot buy is the one thing worth knowing before
+they tap, and leaving it to the event page costs a navigation to find out.
+
+### Chip — a filter that is pressed or not
+
+`aria-pressed`, not a radio group: category and city are independent toggles that happen to look
+alike, and announcing them as one group tells a screen reader something untrue about how they
+behave. Pressed is the ink fill; unpressed is paper. Both keep the 2px border, so the strip has
+one silhouette whatever is on.
+
+**A zero count is shown, disabled, not hidden.** A greyed `Thể thao 0` says the other filters
+emptied that category. The same chip missing from the strip says the category does not exist.
+The second is a lie, and it is the one a `filter()` produces by default.
+
 ---
 
 ## Do's and Don'ts
