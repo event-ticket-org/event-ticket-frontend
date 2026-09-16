@@ -49,12 +49,41 @@ export function EventRail({
   }
 
   return (
+    <Rail title={title} seeAll={`/?categorySlug=${categorySlug}`}>
+      {rows.map((event) => (
+        <li key={event.id} className="w-64 shrink-0 snap-start">
+          <RailCard event={event} />
+        </li>
+      ))}
+    </Rail>
+  )
+}
+
+/**
+ * The row itself: a heading, an optional way to see the rest, and a horizontal scroller.
+ *
+ * Shared by the category rails and the ranked one so the three rows on the page are the same
+ * object rather than three that look alike - the failure being avoided is one rail with
+ * different card spacing or a heading a size out, which reads as a rendering bug.
+ */
+export function Rail({
+  title,
+  seeAll,
+  children,
+}: {
+  title: React.ReactNode
+  seeAll?: string
+  children: React.ReactNode
+}) {
+  return (
     <section className="space-y-3">
       <div className="flex items-baseline justify-between gap-4 border-b-2 border-ink pb-1">
         <h2 className="text-heading">{title}</h2>
-        <Link to={`/?categorySlug=${categorySlug}`} className="text-label uppercase">
-          See all
-        </Link>
+        {seeAll && (
+          <Link to={seeAll} className="text-label uppercase">
+            See all
+          </Link>
+        )}
       </div>
       {/*
         A scrolling row rather than a wrapping grid. A grid of four would reflow into two rows
@@ -63,11 +92,7 @@ export function EventRail({
         the page's edge while still having room to breathe when scrolled.
       */}
       <ul className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2">
-        {rows.map((event) => (
-          <li key={event.id} className="w-64 shrink-0 snap-start">
-            <RailCard event={event} />
-          </li>
-        ))}
+        {children}
       </ul>
     </section>
   )
@@ -80,7 +105,7 @@ export function EventRail({
  * is the one thing worth knowing before they tap, and leaving it to the event page means a
  * navigation to learn it.
  */
-function RailCard({ event }: { event: PublicEventSummary }) {
+export function RailCard({ event, rank }: { event: PublicEventSummary; rank?: number }) {
   const soldOut = event.seatsAvailable === 0
 
   return (
@@ -101,7 +126,23 @@ function RailCard({ event }: { event: PublicEventSummary }) {
         className="border-0 border-b-2"
       />
       <div className="flex flex-1 flex-col gap-2 p-4">
-        <h3 className="text-body-strong">{event.title}</h3>
+        <div className="flex items-baseline gap-3">
+          {/*
+            The rank, at display size, beside the title rather than floating over the cover.
+            Ticketbox sets huge numerals half-behind the artwork; here the cover is a hard-edged
+            block with a 2px border and a numeral crossing it would fight the border rather than
+            sit in front of it. Same information, in the system's own grammar.
+
+            aria-hidden because the list order already says it, and a screen reader that read
+            "1 Live in Saigon, 2 Jazz at the Opera House" would be reading the numbering twice.
+          */}
+          {rank !== undefined && (
+            <span aria-hidden="true" className="font-numeric text-display leading-none">
+              {rank}
+            </span>
+          )}
+          <h3 className="text-body-strong">{event.title}</h3>
+        </div>
         {/* The venue's clock, like every time on this site. Date only: a rail is about which
             day, and the hour is on the page a tap away. */}
         <p className="text-body text-ink-soft">

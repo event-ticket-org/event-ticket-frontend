@@ -916,6 +916,41 @@ catalogue" layout: the rails light up as the catalogue fills and nobody switches
 for this pattern omits it; an event somebody cannot buy is the one thing worth knowing before
 they tap, and leaving it to the event page costs a navigation to find out.
 
+### Hero — the curated row
+
+One placement at a time, on the public home page, above everything including the page's own
+heading. The first thing on a discovery page should be something to go to, not a label for the
+page you are already on.
+
+`shadow-lifted` rather than `shadow-raised`, and a 16:9 `hero` cover rather than the listing's
+`band`: it is the largest object on the page and the only one that should read as being in
+front of it.
+
+**It does not advance by itself.** The reference this borrows from autoplays, and autoplay is
+the one carousel behaviour that reliably makes people angry — it moves what somebody is reading
+and takes the pace out of their hands. Honouring `prefers-reduced-motion` properly means
+building the manual version anyway and then not using it, so this system only has the manual
+version. Two buttons and numbered indicators; it stays where it is put.
+
+**Numbered indicators, not dots.** A dot is a 6px target that says nothing about where you are
+in a row of five, and this system has a numeric face already doing this job. They are buttons
+because they are reachable positions, not decoration, and they meet the 44px minimum like every
+other control here.
+
+**Only the current slide is in the DOM.** Rendering all of them and hiding the rest leaves their
+links in the tab order, so a keyboard user tabs through events they cannot see — and
+`aria-hidden` on a container holding a focusable link is a lie the browser does not enforce.
+
+### The rank numeral — ranked rail only
+
+Display-sized, `font-numeric`, beside the title rather than over the artwork. Ticketbox sets
+huge numerals half-behind the cover; here a cover is a hard-edged block with a 2px border, and a
+numeral crossing it fights the border instead of sitting in front of it. Same information, in
+this system's grammar.
+
+`aria-hidden`, always. The list order already carries the ranking, and a screen reader that read
+"1 Live in Saigon, 2 Jazz at the Opera House" would be reading it twice.
+
 ### Chip — a filter that is pressed or not
 
 `aria-pressed`, not a radio group: category and city are independent toggles that happen to look

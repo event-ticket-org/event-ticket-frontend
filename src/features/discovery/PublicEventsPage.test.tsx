@@ -39,6 +39,12 @@ beforeEach(() => {
     if (url.includes('/public/cities')) {
       return json(CITIES)
     }
+    // The curated and ranked rows, empty: the server decides whether either is shown, and on
+    // this catalogue neither is. Without these the page would get the listing's object back
+    // for both and fail on the first `.map`.
+    if (url.includes('/public/featured-events') || url.includes('/public/trending-events')) {
+      return json([])
+    }
     return json({
       items: [],
       nextCursor: null,
