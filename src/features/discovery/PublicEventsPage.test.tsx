@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PublicEventsPage } from './PublicEventsPage'
@@ -108,5 +108,23 @@ describe('the filter strip', () => {
     expect(rails).toHaveLength(0)
     expect(fetchMock.mock.calls.filter((call) => String(call[0]).includes('categorySlug=')))
       .toHaveLength(0)
+  })
+
+  /**
+   * A named range is pinned to the moment it was chosen. "This month" starts at *now*, and a
+   * `now` read on every render is a new query key on every render - each answer re-renders the
+   * page, which asks again, forever.
+   */
+  it('asks once for a named range, not once per render', async () => {
+    page()
+    fireEvent.click(await screen.findByRole('button', { name: 'Hà Nội' }))
+    fireEvent.click(screen.getByRole('button', { name: 'This month' }))
+
+    const ranged = () =>
+      fetchMock.mock.calls.filter((call) => String(call[0]).includes('startsAfter='))
+    await waitFor(() => expect(ranged().length).toBeGreaterThan(0))
+    await new Promise((resolve) => setTimeout(resolve, 200))
+
+    expect(ranged()).toHaveLength(1)
   })
 })
