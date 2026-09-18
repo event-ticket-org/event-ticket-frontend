@@ -84,12 +84,15 @@ export function PublicEventsPage() {
   // Applied on submit rather than on every keystroke: a filter that refetches while somebody
   // is still typing "Hà Nội" spends four requests answering questions nobody asked.
   const [applied, setApplied] = useState<Filters>(NOTHING)
+  // Worked out when the filter is applied and kept, never on render. "This month" starts at
+  // *now*, and a `now` read on every render is a new query key on every render: each answer
+  // re-renders the page, which asks again, forever.
+  const [range, setRange] = useState(() => dateRange(NOTHING))
   const [showFilters, setShowFilters] = useState(false)
   const panelId = useId()
 
   const categories = useCategories()
   const cities = useCities()
-  const range = dateRange(applied)
 
   const events = usePublicEvents({
     q: applied.q || undefined,
@@ -112,6 +115,7 @@ export function PublicEventsPage() {
   function apply(next: Filters) {
     setForm(next)
     setApplied({ ...next, q: next.q.trim() })
+    setRange(dateRange(next))
   }
 
   return (
